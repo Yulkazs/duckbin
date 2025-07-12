@@ -30,9 +30,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${kronaOne.variable} ${poppins.variable}`}>
       <body>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
       </body>
     </html>
   );

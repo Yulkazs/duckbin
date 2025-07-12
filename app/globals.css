@@ -1,13 +1,12 @@
 @tailwind utilities;
 
 :root {
-  /* Default dark theme colors */
   --color-primary: #1f2937;
-  --color-secondary: #374151;
-  --color-background: #111827;
-  --color-surface: #1f2937;
-  --color-surface-secondary: #374151;
-  --color-border: #4b5563;
+  --color-secondary: #ffffff;
+  --color-background: #0D0D0D;
+  --color-surface: #111111;
+  --color-surface-secondary: #ffffff;
+  --color-border: #ffffff;
   --color-text: #f9fafb;
   --color-text-secondary: #d1d5db;
   --color-text-muted: #9ca3af;
@@ -27,8 +26,11 @@ body {
   font-family: var(--font-poppins), sans-serif;
   background-color: var(--color-background);
   color: var(--color-text);
-  margin: 0;
+  margin: 4rem;
+  margin-left: 10rem;
+  margin-right: 10rem;
   padding: 0;
+  height: fit-content;
 }
 
 .font-title {
