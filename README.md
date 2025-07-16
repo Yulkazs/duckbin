@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🦆 Duckbin
 
-## Getting Started
+[Visit Duckbin →](https://duckbin.vercel.app)
 
-First, run the development server:
+**Duckbin** is a clean and minimal web-based code sharing tool built for developers. It allows you to quickly write, store, and share code snippets with syntax highlighting and a customizable interface.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ✨ Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Syntax Highlighting**  
+  Supports a wide range of programming languages with auto or manual selection.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **GitHub Import**  
+  Import code directly from GitHub repositories or gists.
 
-## Learn More
+- **Theme Customization**  
+  Choose from 10 beautiful themes to personalize your editor.
 
-To learn more about Next.js, take a look at the following resources:
+- **Instant Sharing**  
+  Save your snippet and generate a unique, shareable link.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Modern UI**  
+  Responsive, fast, and user-friendly interface optimized for developers.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🚀 Getting Started
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Visit [duckbin.vercel.app](https://duckbin.vercel.app)
+2. Paste or write your code in the editor.
+3. Select a language for syntax highlighting.
+4. Optionally switch between 10 available themes.
+5. Click **Save** to generate a link you can share.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 💡 Use Cases
+
+- Share code snippets with collaborators or teams.
+- Archive quick scripts, templates, or config files.
+- Embed shareable code examples in blog posts or documentation.
+- Showcase small projects or experiments with clean URLs.
+
+---
+
+## 📬 Feedback & Contributions
+
+Feature requests, suggestions, and contributions are welcome.  
+The GitHub repository will be available soon.
+
+---
+
+## 📄 License
+
+Licensed under the [MIT License](LICENSE).
+
+---
+
+> Designed for developers who value speed, clarity, and simplicity.
