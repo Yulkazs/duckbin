@@ -1,26 +1,93 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #020202;
+  --primary: #FFFFFF;
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --font-sans: var(--font-poppins);
+  --font-mono: var(--font-chivo-mono);
+  --font-display: var(--font-krona-one);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Theme classes for dynamic switching */
+.theme-dark {
+  --background: #020202;
+  --primary: #FFFFFF;
+}
+
+.theme-midnight {
+  --background: #020015;
+  --primary: #CACBFF;
+}
+
+.theme-wine {
+  --background: #160000;
+  --primary: #FFCACA;
+}
+
+.theme-spruce {
+  --background: #0D1117;
+  --primary: #455B6D;
+}
+
+.theme-forest {
+  --background: #0B120C;
+  --primary: #4B5B49;
+}
+
+.theme-light {
+  --background: #F8F8F8;
+  --primary: #363C4C;
+}
+
+.theme-coffee {
+  --background: #362217;
+  --primary: #FFDCC3;
+}
+
+.theme-pinky {
+  --background: #FFDAF6;
+  --primary: #FF43D6;
+}
+
+.theme-greeny {
+  --background: #E5FFD8;
+  --primary: #2A670E;
+}
+
+.theme-lightShade {
+  --background: #D0D0D0;
+  --primary: #634C4C;
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--primary);
+  font-family: var(--font-sans);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.bg-theme {
+  background-color: var(--background);
+}
+
+.text-theme {
+  color: var(--primary);
+}
+
+.border-theme {
+  border-color: var(--primary);
+}
+
+/* Font utility classes */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-code {
+  font-family: var(--font-mono);
 }
