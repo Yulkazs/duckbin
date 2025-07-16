@@ -35,7 +35,7 @@ export const ThemeDropdown: React.FC<ThemeDropdownProps> = ({ className = "" }) 
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-md border transition-all duration-200 hover:bg-opacity-10 min-w-[120px]"
+        className="flex items-center gap-2 px-3 py-2 rounded-md border transition-all duration-200 hover:bg-opacity-10 w-full sm:w-auto sm:min-w-[120px]"
         style={{
           borderColor: theme.primary,
           color: theme.primary,
@@ -44,20 +44,20 @@ export const ThemeDropdown: React.FC<ThemeDropdownProps> = ({ className = "" }) 
       >
         <div className="flex items-center gap-2 flex-1">
           <div 
-            className="w-3 h-3 rounded-full"
+            className="w-3 h-3 rounded-full flex-shrink-0"
             style={{ backgroundColor: theme.primary }}
           />
-          <span className="text-sm font-medium">{currentThemeData.name}</span>
+          <span className="text-sm font-medium truncate">{currentThemeData.name}</span>
         </div>
         <ChevronDown 
           size={16} 
-          className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          className={`transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
       {isOpen && (
         <div 
-          className="absolute top-full left-0 mt-1 w-full min-w-[200px] rounded-md border shadow-lg z-50 max-h-60 overflow-y-auto"
+          className="absolute top-full left-0 mt-1 w-full sm:w-auto sm:min-w-[200px] max-w-xs sm:max-w-sm rounded-md border shadow-lg z-[55] max-h-48 sm:max-h-60 overflow-y-auto"
           style={{
             backgroundColor: theme.background,
             borderColor: theme.primary,
@@ -87,12 +87,12 @@ export const ThemeDropdown: React.FC<ThemeDropdownProps> = ({ className = "" }) 
               }}
             >
               <div 
-                className="w-3 h-3 rounded-full"
+                className="w-3 h-3 rounded-full flex-shrink-0"
                 style={{ backgroundColor: themeData.primary }}
               />
-              <span className="text-sm">{themeData.name}</span>
-              <div className="ml-auto flex items-center gap-1 text-xs opacity-60">
-                <span>{themeData.background}</span>
+              <span className="text-sm flex-1 truncate">{themeData.name}</span>
+              <div className="hidden sm:flex items-center gap-1 text-xs opacity-60 flex-shrink-0">
+                <span className="truncate max-w-[4rem]">{themeData.background}</span>
               </div>
             </button>
           ))}

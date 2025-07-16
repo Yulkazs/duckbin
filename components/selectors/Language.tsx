@@ -82,7 +82,7 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-md border transition-all duration-200 hover:bg-opacity-10 min-w-[140px]"
+        className="flex items-center gap-2 px-3 py-2 rounded-md border transition-all duration-200 hover:bg-opacity-10 w-full sm:w-auto sm:min-w-[140px]"
         style={{
           borderColor: theme.primary,
           color: theme.primary,
@@ -105,7 +105,7 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
 
       {isOpen && (
         <div 
-          className="absolute top-full left-0 mt-1 w-full min-w-[280px] rounded-md border shadow-lg z-50"
+          className="absolute top-full left-0 mt-1 w-full sm:w-auto sm:min-w-[280px] max-w-xs sm:max-w-sm rounded-md border shadow-lg z-[60]"
           style={{
             backgroundColor: theme.background,
             borderColor: theme.primary,
@@ -129,11 +129,11 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
           </div>
 
           {/* Language List */}
-          <div className="max-h-60 overflow-y-auto">
+          <div className="max-h-48 sm:max-h-60 overflow-y-auto">
             {Object.entries(groupedLanguages).map(([category, langs]) => (
               <div key={category}>
                 <div 
-                  className="px-3 py-1 text-xs font-semibold uppercase tracking-wider opacity-60 bg-opacity-5"
+                  className="px-3 py-1 text-xs font-semibold uppercase tracking-wider opacity-60 bg-opacity-5 sticky top-0 z-10"
                   style={{ 
                     color: theme.primary,
                     backgroundColor: `${theme.primary}10`
@@ -165,11 +165,11 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
                     }}
                   >
                     <div 
-                      className="w-2 h-2 rounded-full"
+                      className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{ backgroundColor: getCategoryColor(language.category) }}
                     />
-                    <span className="text-sm">{language.name}</span>
-                    <div className="ml-auto flex items-center gap-1 text-xs opacity-60">
+                    <span className="text-sm flex-1 truncate">{language.name}</span>
+                    <div className="hidden sm:flex items-center gap-1 text-xs opacity-60 flex-shrink-0">
                       <span>.{language.extension}</span>
                     </div>
                   </button>
