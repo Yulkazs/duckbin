@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { useThemeContext } from '@/components/ThemeProvider';
+import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { ChevronDown } from 'lucide-react';
 
 interface ThemeDropdownProps {

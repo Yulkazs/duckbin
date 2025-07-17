@@ -1,5 +1,3 @@
-// lib/colors.ts
-
 export interface Theme {
   name: string;
   background: string;

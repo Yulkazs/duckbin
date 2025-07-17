@@ -1,9 +1,8 @@
-// components/ThemeProvider.tsx
 "use client";
 
 import { createContext, useContext, ReactNode } from 'react';
 import { useTheme } from '@/hooks/useTheme';
-import { Theme } from '@/lib/colors';
+import { Theme } from '@/utils/colors';
 
 interface ThemeContextType {
   currentTheme: string;

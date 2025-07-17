@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Krona_One, Poppins, Chivo_Mono } from "next/font/google";
-import { ThemeProvider } from "@/components/ThemeProvider";
+import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import "./globals.css";
 
 const kronaOne = Krona_One({

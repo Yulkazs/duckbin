@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { useThemeContext } from '@/components/ThemeProvider';
+import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { ChevronDown, Search } from 'lucide-react';
-import { languages, getLanguageById, searchLanguages, getDefaultLanguage, type Language } from '@/lib/languages';
+import { languages, getLanguageById, searchLanguages, getDefaultLanguage, type Language } from '@/utils/languages';
 
 interface LanguageDropdownProps {
   value?: string;

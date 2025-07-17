@@ -1,4 +1,3 @@
-// lib/mongodb.ts
 import mongoose from 'mongoose';
 
 if (!process.env.MONGODB_URI) {
@@ -7,7 +6,6 @@ if (!process.env.MONGODB_URI) {
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-// Extend global type to include mongoose
 declare global {
   var mongoose: {
     conn: any | null;

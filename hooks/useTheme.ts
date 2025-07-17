@@ -1,8 +1,7 @@
-// hooks/useTheme.ts
 "use client";
 
 import { useState, useEffect } from 'react';
-import { themes, getTheme, type Theme } from '@/lib/colors';
+import { themes, getTheme, type Theme } from '@/utils/colors';
 
 export const useTheme = () => {
   const [currentTheme, setCurrentTheme] = useState<string>('dark');

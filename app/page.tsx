@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from 'react';
-import { useThemeContext } from "@/components/ThemeProvider";
+import { useThemeContext } from "@/components/ui/ThemeProvider";
 import { Header } from '@/components/Header';
-import { getDefaultLanguage, type Language } from '@/lib/languages';
-import { CodeEditor } from '@/components/CodeEditor';
+import { getDefaultLanguage, type Language } from '@/utils/languages';
 
 export default function Page() {
   const { theme } = useThemeContext();
@@ -20,12 +19,6 @@ export default function Page() {
         onLanguageChange={handleLanguageChange}
         selectedLanguage={selectedLanguage.id}
       />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <CodeEditor 
-          language={selectedLanguage}
-        />
-      </main>
     </div>
   );
 }
