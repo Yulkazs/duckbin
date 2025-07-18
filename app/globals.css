@@ -91,3 +91,24 @@ body {
 .font-code {
   font-family: var(--font-mono);
 }
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 1px;
+  background-color: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--primary);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background-color: rgba(17, 17, 17, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--background);
+}
+::-webkit-scrollbar-track:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+}

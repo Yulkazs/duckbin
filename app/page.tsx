@@ -9,7 +9,7 @@ import { getDefaultLanguage, type Language } from '@/utils/languages';
 
 export default function Page() {
   const { theme } = useThemeContext();
-  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
+  const [selectedLanguage, setSelectedLanguage] = useState('plaintext');
   const [code, setCode] = useState('');
 
   const handleCodeChange = (newCode: string) => {

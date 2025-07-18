@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { themes, getTheme, type Theme } from '@/utils/colors';
+import { themes, type Theme } from '@/utils/colors';
 
 export const useTheme = () => {
   const [currentTheme, setCurrentTheme] = useState<string>('dark');

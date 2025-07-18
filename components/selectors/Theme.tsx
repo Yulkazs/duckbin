@@ -35,22 +35,15 @@ export const ThemeDropdown: React.FC<ThemeDropdownProps> = ({ className = "" }) 
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-md border transition-all duration-200 hover:bg-opacity-10 w-full sm:w-auto sm:min-w-[120px]"
+        className="flex items-center gap-1 px-3 py-2 rounded-md transition-all duration-200 hover:bg-opacity-10 w-full sm:w-auto sm:min-w-[120px]"
         style={{
-          borderColor: theme.primary,
           color: theme.primary,
-          backgroundColor: isOpen ? `${theme.primary}20` : 'transparent',
+          backgroundColor: isOpen ? `${theme.primary}10` : 'transparent',
         }}
       >
-        <div className="flex items-center gap-2 flex-1">
-          <div 
-            className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: theme.primary }}
-          />
-          <span className="text-sm font-medium truncate">{currentThemeData.name}</span>
-        </div>
+        <span className="text-m font-medium truncate">{currentThemeData.name}</span>
         <ChevronDown 
-          size={16} 
+          size={20} 
           className={`transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>

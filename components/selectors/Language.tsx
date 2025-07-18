@@ -82,23 +82,16 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-md border transition-all duration-200 hover:bg-opacity-10 w-full sm:w-auto sm:min-w-[140px]"
+        className="flex items-center gap-1 px-3 py-2 rounded-md transition-all duration-200 hover:bg-opacity-10 w-full sm:w-auto sm:min-w-[140px]"
         style={{
-          borderColor: theme.primary,
           color: theme.primary,
-          backgroundColor: isOpen ? `${theme.primary}20` : 'transparent',
+          backgroundColor: isOpen ? `${theme.primary}10` : 'transparent',
         }}
         onKeyDown={handleKeyDown}
       >
-        <div className="flex items-center gap-2 flex-1">
-          <div 
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: getCategoryColor(currentLanguage.category) }}
-          />
-          <span className="text-sm font-medium">{currentLanguage.name}</span>
-        </div>
+        <span className="text-m font-medium">{currentLanguage.name}</span>
         <ChevronDown 
-          size={16} 
+          size={20} 
           className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>

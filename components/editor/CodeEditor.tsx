@@ -22,6 +22,9 @@ interface CodeEditorProps {
   readOnly?: boolean;
   className?: string;
   placeholder?: string;
+  title?: string;
+  onTitleChange?: (title: string) => void;
+  createdAt?: string;
 }
 
 export const CodeEditor: React.FC<CodeEditorProps> = ({
@@ -31,7 +34,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   height = '400px',
   readOnly = false,
   className = '',
-  placeholder = ''
+  placeholder = '',
+  title = '',
+  onTitleChange,
+  createdAt = new Date().toLocaleDateString('en-GB')
 }) => {
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,6 +47,22 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [monacoLoaded, setMonacoLoaded] = useState(false);
   const [monaco, setMonaco] = useState<MonacoEditor | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [localTitle, setLocalTitle] = useState(title);
+
+  // Calculate stats
+  const characterCount = value.length;
+  const lineCount = value.split('\n').length;
+  const displayLanguage = language.charAt(0).toUpperCase() + language.slice(1);
+
+  const handleTitleChange = (newTitle: string) => {
+    // Limit title to 100 characters
+    if (newTitle.length <= 100) {
+      setLocalTitle(newTitle);
+      if (onTitleChange) {
+        onTitleChange(newTitle);
+      }
+    }
+  };
 
   // Show/hide placeholder based on content
   const updatePlaceholderVisibility = () => {
@@ -56,7 +78,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       if (typeof window === 'undefined') return;
 
       try {
-        // Set up Monaco environment before loading
         (window as any).MonacoEnvironment = {
           getWorkerUrl: () => {
             return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
@@ -68,7 +89,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           }
         };
 
-        // Load Monaco from CDN
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.js';
         script.onload = () => {
@@ -103,20 +123,16 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
     const initEditor = async () => {
       try {
-        // Clear container
         if (containerRef.current) {
           containerRef.current.innerHTML = '';
         }
 
-        // Get syntax colors for current theme
         const syntaxColors = getSyntaxColors(currentTheme);
         const themeConfig = createMonacoTheme(currentTheme, syntaxColors);
         const themeName = `duckbin-${currentTheme}`;
         
-        // Define the theme
         monaco.editor.defineTheme(themeName, themeConfig);
 
-        // Create editor
         editorRef.current = monaco.editor.create(containerRef.current!, {
           value: value,
           language: language,
@@ -175,7 +191,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           }
         });
 
-        // Listen for focus to hide placeholder
         editorRef.current.onDidFocusEditorText(() => {
           updatePlaceholderVisibility();
         });
@@ -197,7 +212,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     };
   }, [monacoLoaded, monaco]);
 
-  // Update theme when it changes
   useEffect(() => {
     if (!isEditorReady || !editorRef.current || !monaco) return;
 
@@ -213,7 +227,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   }, [currentTheme, isEditorReady, monaco]);
 
-  // Update language when it changes
   useEffect(() => {
     if (!isEditorReady || !editorRef.current || !monaco) return;
 
@@ -227,7 +240,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   }, [language, isEditorReady, monaco]);
 
-  // Update value when it changes externally
   useEffect(() => {
     if (!isEditorReady || !editorRef.current) return;
 
@@ -241,12 +253,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   }, [value, isEditorReady]);
 
-  // Update placeholder visibility when value changes
   useEffect(() => {
     updatePlaceholderVisibility();
   }, [value, placeholder]);
 
-  // Show error state
+  useEffect(() => {
+    setLocalTitle(title);
+  }, [title]);
+
   if (loadError) {
     return (
       <div className={`space-y-2 ${className}`}>
@@ -293,27 +307,54 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   }
 
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`${className}`}>
       <div 
-        className="border rounded-lg overflow-hidden relative"
+        className="border rounded-lg overflow-hidden relative flex flex-col"
         style={{ 
           height,
           borderColor: theme.primary + '40',
           backgroundColor: theme.background
         }}
       >
+        {/* Title bar - integrated at the top */}
+        <div 
+          className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0"
+          style={{ 
+            borderColor: theme.primary + '20',
+            backgroundColor: theme.background,
+            height: '36px'
+          }}
+        >
+          <input
+            type="text"
+            value={localTitle}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            placeholder="Your title"
+            maxLength={100}
+            className="text-sm px-2 py-1 rounded border-0 outline-none bg-transparent flex-1"
+            style={{ 
+              color: theme.primary,
+              backgroundColor: 'transparent',
+              fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace'
+            }}
+          />
+        </div>
+
+        {/* Editor container */}
         <div 
           ref={containerRef}
-          className="w-full h-full"
+          className="w-full flex-1"
+          style={{ minHeight: 0 }}
         />
         
         {/* Placeholder overlay */}
         {placeholder && (
           <div
             ref={placeholderRef}
-            className="absolute top-0 left-0 pointer-events-none"
+            className="absolute pointer-events-none"
             style={{
-              padding: '20px 0 0 60px', // Adjust to align with editor content (accounting for line numbers)
+              top: '56px',
+              left: '60px',
               fontSize: '14px',
               fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
               color: theme.primary,
@@ -324,6 +365,27 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             {placeholder}
           </div>
         )}
+
+        {/* Bottom status bar - integrated at the bottom */}
+        <div 
+          className="flex justify-between items-center px-4 py-1 border-t text-xs flex-shrink-0"
+          style={{ 
+            borderColor: theme.primary + '20',
+            backgroundColor: theme.background,
+            color: theme.primary,
+            opacity: 0.8,
+            height: '28px'
+          }}
+        >
+          <div>
+            {createdAt}
+          </div>
+          <div className="flex items-center gap-4">
+            <span>{displayLanguage}</span>
+            <span>{characterCount} characters</span>
+            <span>{lineCount} lines</span>
+          </div>
+        </div>
       </div>
     </div>
   );
