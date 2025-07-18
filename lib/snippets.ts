@@ -47,8 +47,9 @@ class CodeSnippetService {
   private baseUrl = '/api/code-snippets';
   private slugUrl = '/api/slug';
 
+  // Use slug endpoint for creating snippets since that's where the POST handler is
   async createSnippet(data: CreateSnippetRequest): Promise<SnippetResponse> {
-    const response = await fetch(this.baseUrl, {
+    const response = await fetch(this.slugUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -117,6 +118,7 @@ class CodeSnippetService {
     return response.json();
   }
 
+  // Use code-snippets endpoint for listing (GET requests)
   async getSnippets(params: GetSnippetsParams = {}): Promise<SnippetsListResponse> {
     const searchParams = new URLSearchParams();
     
