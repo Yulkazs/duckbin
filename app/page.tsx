@@ -10,7 +10,7 @@ import { getDefaultLanguage, type Language } from '@/utils/languages';
 export default function Page() {
   const { theme } = useThemeContext();
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
-  const [code, setCode] = useState(`// Welcome to Duckbin`);
+  const [code, setCode] = useState('');
 
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
@@ -34,6 +34,7 @@ export default function Page() {
           language={selectedLanguage}
           height="600px"
           className="w-full"
+          placeholder="// Welcome to Duckbin"
         />
       </div>
     </div>

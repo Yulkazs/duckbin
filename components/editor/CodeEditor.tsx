@@ -1,12 +1,18 @@
-// components/editor/CodeEditor.tsx
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
 import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { getSyntaxColors, createMonacoTheme } from '@/utils/syntax-colors';
 
-// Dynamic Monaco import to avoid SSR issues
-let monaco: any = null;
+// Monaco Editor types
+interface MonacoEditor {
+  editor: {
+    create: (container: HTMLElement, options: any) => any;
+    defineTheme: (name: string, theme: any) => void;
+    setTheme: (name: string) => void;
+    setModelLanguage: (model: any, language: string) => void;
+  };
+}
 
 interface CodeEditorProps {
   value: string;
@@ -15,6 +21,7 @@ interface CodeEditorProps {
   height?: string;
   readOnly?: boolean;
   className?: string;
+  placeholder?: string;
 }
 
 export const CodeEditor: React.FC<CodeEditorProps> = ({
@@ -23,43 +30,67 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   language = 'javascript',
   height = '400px',
   readOnly = false,
-  className = ''
+  className = '',
+  placeholder = ''
 }) => {
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const placeholderRef = useRef<HTMLDivElement>(null);
   const { theme, currentTheme } = useThemeContext();
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [monacoLoaded, setMonacoLoaded] = useState(false);
+  const [monaco, setMonaco] = useState<MonacoEditor | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Show/hide placeholder based on content
+  const updatePlaceholderVisibility = () => {
+    if (!placeholderRef.current) return;
+    
+    const shouldShowPlaceholder = !value && placeholder;
+    placeholderRef.current.style.display = shouldShowPlaceholder ? 'block' : 'none';
+  };
 
   // Load Monaco Editor dynamically
   useEffect(() => {
     const loadMonaco = async () => {
-      if (typeof window !== 'undefined' && !monaco) {
-        try {
-          // Dynamic import for Monaco
-          const monacoEditor = await import('monaco-editor');
-          monaco = monacoEditor.default || monacoEditor;
-          
-          // Configure Monaco environment
-          if (typeof window !== 'undefined') {
-            (window as any).MonacoEnvironment = {
-              getWorkerUrl: () => {
-                return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
-                  self.MonacoEnvironment = {
-                    baseUrl: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/'
-                  };
-                  importScripts('https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/base/worker/workerMain.js');
-                `)}`;
-              }
-            };
+      if (typeof window === 'undefined') return;
+
+      try {
+        // Set up Monaco environment before loading
+        (window as any).MonacoEnvironment = {
+          getWorkerUrl: () => {
+            return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+              self.MonacoEnvironment = {
+                baseUrl: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/'
+              };
+              importScripts('https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/base/worker/workerMain.js');
+            `)}`;
           }
+        };
+
+        // Load Monaco from CDN
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.js';
+        script.onload = () => {
+          const loader = (window as any).require;
+          loader.config({ 
+            paths: { 
+              vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' 
+            } 
+          });
           
-          setMonacoLoaded(true);
-        } catch (error) {
-          console.error('Failed to load Monaco Editor:', error);
-        }
-      } else if (monaco) {
-        setMonacoLoaded(true);
+          loader(['vs/editor/editor.main'], (monacoInstance: MonacoEditor) => {
+            setMonaco(monacoInstance);
+            setMonacoLoaded(true);
+          });
+        };
+        script.onerror = () => {
+          setLoadError('Failed to load Monaco Editor');
+        };
+        document.head.appendChild(script);
+      } catch (error) {
+        console.error('Failed to load Monaco Editor:', error);
+        setLoadError('Failed to load Monaco Editor');
       }
     };
 
@@ -72,6 +103,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
     const initEditor = async () => {
       try {
+        // Clear container
+        if (containerRef.current) {
+          containerRef.current.innerHTML = '';
+        }
+
         // Get syntax colors for current theme
         const syntaxColors = getSyntaxColors(currentTheme);
         const themeConfig = createMonacoTheme(currentTheme, syntaxColors);
@@ -81,11 +117,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         monaco.editor.defineTheme(themeName, themeConfig);
 
         // Create editor
-        editorRef.current = monaco.editor.create(containerRef.current, {
-          value,
-          language,
+        editorRef.current = monaco.editor.create(containerRef.current!, {
+          value: value,
+          language: language,
           theme: themeName,
-          readOnly,
+          readOnly: readOnly,
           fontSize: 14,
           lineNumbers: 'on',
           roundedSelection: false,
@@ -133,13 +169,21 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
         // Listen for changes
         editorRef.current.onDidChangeModelContent(() => {
-          const newValue = editorRef.current?.getValue() || '';
-          onChange(newValue);
+          if (editorRef.current) {
+            const newValue = editorRef.current.getValue() || '';
+            onChange(newValue);
+          }
+        });
+
+        // Listen for focus to hide placeholder
+        editorRef.current.onDidFocusEditorText(() => {
+          updatePlaceholderVisibility();
         });
 
         setIsEditorReady(true);
       } catch (error) {
         console.error('Failed to initialize Monaco Editor:', error);
+        setLoadError('Failed to initialize Monaco Editor');
       }
     };
 
@@ -148,9 +192,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     return () => {
       if (editorRef.current) {
         editorRef.current.dispose();
+        editorRef.current = null;
       }
     };
-  }, [monacoLoaded, value, language]);
+  }, [monacoLoaded, monaco]);
 
   // Update theme when it changes
   useEffect(() => {
@@ -166,7 +211,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     } catch (error) {
       console.error('Failed to update theme:', error);
     }
-  }, [currentTheme, isEditorReady]);
+  }, [currentTheme, isEditorReady, monaco]);
 
   // Update language when it changes
   useEffect(() => {
@@ -180,7 +225,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     } catch (error) {
       console.error('Failed to update language:', error);
     }
-  }, [language, isEditorReady]);
+  }, [language, isEditorReady, monaco]);
 
   // Update value when it changes externally
   useEffect(() => {
@@ -195,6 +240,34 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       console.error('Failed to update value:', error);
     }
   }, [value, isEditorReady]);
+
+  // Update placeholder visibility when value changes
+  useEffect(() => {
+    updatePlaceholderVisibility();
+  }, [value, placeholder]);
+
+  // Show error state
+  if (loadError) {
+    return (
+      <div className={`space-y-2 ${className}`}>
+        <div 
+          className="border-b rounded-lg overflow-hidden flex items-center justify-center"
+          style={{ 
+            height,
+            borderColor: theme.primary + '40',
+            backgroundColor: theme.background,
+            color: theme.primary
+          }}
+        >
+          <div className="text-center">
+            <div className="text-red-500 mb-2">⚠️</div>
+            <p className="text-sm text-red-500">{loadError}</p>
+            <p className="text-xs opacity-60 mt-1">Please check your internet connection</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading state
   if (!monacoLoaded) {
@@ -212,7 +285,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-2" 
                  style={{ borderColor: theme.primary }}></div>
-            <p className="text-sm opacity-60">Loading editor...</p>
+            <p className="text-sm opacity-60">Loading Monaco Editor...</p>
           </div>
         </div>
       </div>
@@ -222,14 +295,36 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   return (
     <div className={`space-y-2 ${className}`}>
       <div 
-        ref={containerRef}
-        className="border rounded-lg overflow-hidden"
+        className="border rounded-lg overflow-hidden relative"
         style={{ 
           height,
           borderColor: theme.primary + '40',
           backgroundColor: theme.background
         }}
-      />
+      >
+        <div 
+          ref={containerRef}
+          className="w-full h-full"
+        />
+        
+        {/* Placeholder overlay */}
+        {placeholder && (
+          <div
+            ref={placeholderRef}
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{
+              padding: '20px 0 0 60px', // Adjust to align with editor content (accounting for line numbers)
+              fontSize: '14px',
+              fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
+              color: theme.primary,
+              opacity: 0.5,
+              display: !value && placeholder ? 'block' : 'none'
+            }}
+          >
+            {placeholder}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
