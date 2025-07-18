@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { getSyntaxColors, createMonacoTheme } from '@/utils/syntax-colors';
+import { snippetService } from '@/lib/snippets';
+import { Save, Loader2, Check, X } from 'lucide-react';
 
 // Monaco Editor types
 interface MonacoEditor {
@@ -25,6 +27,9 @@ interface CodeEditorProps {
   title?: string;
   onTitleChange?: (title: string) => void;
   createdAt?: string;
+  // Add save-related props
+  onSave?: (savedSnippet: any) => void;
+  showSaveButton?: boolean;
 }
 
 export const CodeEditor: React.FC<CodeEditorProps> = ({
@@ -37,7 +42,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   placeholder = '',
   title = '',
   onTitleChange,
-  createdAt = new Date().toLocaleDateString('en-GB')
+  createdAt = new Date().toLocaleDateString('en-GB'),
+  onSave,
+  showSaveButton = true
 }) => {
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,6 +55,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [monaco, setMonaco] = useState<MonacoEditor | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [localTitle, setLocalTitle] = useState(title);
+  
+  // Save functionality states
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Calculate stats
   const characterCount = value.length;
@@ -61,6 +73,58 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       if (onTitleChange) {
         onTitleChange(newTitle);
       }
+    }
+  };
+
+  // Save snippet function
+  const handleSave = async () => {
+    if (isSaving) return;
+
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+      setSaveStatus('idle');
+
+      // Validate data
+      const snippetData = {
+        title: localTitle.trim() || 'Untitled Snippet',
+        code: value,
+        language: language,
+        theme: currentTheme
+      };
+
+      const validation = snippetService.validateSnippetData(snippetData);
+      if (!validation.isValid) {
+        throw new Error(validation.errors.join(', '));
+      }
+
+      // Save to database
+      const response = await snippetService.createSnippet(snippetData);
+      
+      setSaveStatus('success');
+      
+      // Call onSave callback if provided
+      if (onSave) {
+        onSave(response);
+      }
+
+      // Reset success status after 2 seconds
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error saving snippet:', error);
+      setSaveStatus('error');
+      setSaveError(error instanceof Error ? error.message : 'Failed to save snippet');
+      
+      // Reset error status after 3 seconds
+      setTimeout(() => {
+        setSaveStatus('idle');
+        setSaveError(null);
+      }, 3000);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -261,6 +325,45 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     setLocalTitle(title);
   }, [title]);
 
+  // Render save button
+  const renderSaveButton = () => {
+    if (!showSaveButton) return null;
+
+    return (
+      <button
+        onClick={handleSave}
+        disabled={isSaving || !value.trim()}
+        className="flex items-center gap-2 px-3 py-1 rounded text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{
+          backgroundColor: saveStatus === 'success' ? '#10b981' : saveStatus === 'error' ? '#ef4444' : theme.primary,
+          color: theme.background,
+        }}
+      >
+        {isSaving ? (
+          <>
+            <Loader2 size={14} className="animate-spin" />
+            <span>Saving...</span>
+          </>
+        ) : saveStatus === 'success' ? (
+          <>
+            <Check size={14} />
+            <span>Saved!</span>
+          </>
+        ) : saveStatus === 'error' ? (
+          <>
+            <X size={14} />
+            <span>Error</span>
+          </>
+        ) : (
+          <>
+            <Save size={14} />
+            <span>Save</span>
+          </>
+        )}
+      </button>
+    );
+  };
+
   if (loadError) {
     return (
       <div className={`space-y-2 ${className}`}>
@@ -338,6 +441,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace'
             }}
           />
+          
+          {/* Save button */}
+          {renderSaveButton()}
         </div>
 
         {/* Editor container */}
@@ -377,8 +483,13 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             height: '28px'
           }}
         >
-          <div>
-            {createdAt}
+          <div className="flex items-center gap-2">
+            <span>{createdAt}</span>
+            {saveError && (
+              <span className="text-red-500" title={saveError}>
+                ⚠️ {saveError}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <span>{displayLanguage}</span>

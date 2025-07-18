@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import CodeSnippet from '@/lib/models/CodeSnippet';
 
+// Helper function to safely parse JSON
+async function safeParseJSON(request: NextRequest) {
+  try {
+    const text = await request.text();
+    
+    // Check if the body is empty
+    if (!text || text.trim() === '') {
+      return { error: 'Request body is empty' };
+    }
+    
+    return JSON.parse(text);
+  } catch (error) {
+    return { error: 'Invalid JSON format' };
+  }
+}
+
 // GET - Retrieve code snippet by slug
 export async function GET(
   request: NextRequest,
@@ -9,7 +25,7 @@ export async function GET(
 ) {
   try {
     await connectDB();
-    
+
     const { slug } = params;
 
     // Validate slug format
@@ -44,7 +60,7 @@ export async function GET(
   }
 }
 
-// PUT - Update code snippet by slug (optional - if you want to allow updates via slug)
+// PUT - Update code snippet by slug
 export async function PUT(
   request: NextRequest,
   { params }: { params: { slug: string } }
@@ -62,7 +78,16 @@ export async function PUT(
       );
     }
 
-    const body = await request.json();
+    // Safely parse JSON
+    const body = await safeParseJSON(request);
+    
+    if (body.error) {
+      return NextResponse.json(
+        { error: body.error },
+        { status: 400 }
+      );
+    }
+
     const { title, code, language, theme } = body;
 
     // Validation
@@ -79,6 +104,14 @@ export async function PUT(
     if (code !== undefined) updateData.code = code;
     if (language !== undefined) updateData.language = language;
     if (theme !== undefined) updateData.theme = theme;
+
+    // Check if there's actually something to update
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: 'No valid fields provided for update' },
+        { status: 400 }
+      );
+    }
 
     const updatedSnippet = await CodeSnippet.findOneAndUpdate(
       { slug },
@@ -108,7 +141,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete code snippet by slug (optional)
+// DELETE - Delete code snippet by slug
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { slug: string } }
