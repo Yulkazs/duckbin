@@ -39,7 +39,6 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [repoInfo, setRepoInfo] = useState<RepoInfo | null>(null);
 
-  // Reset state when component becomes visible
   useEffect(() => {
     if (isVisible) {
       setStep('input');
@@ -52,33 +51,23 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
     }
   }, [isVisible]);
 
-  // Parse GitHub URL
-  const parseGitHubUrl = (url: string): RepoInfo & { initialPath?: string } => {
+  const parseGitHubUrl = (url: string): RepoInfo => {
     try {
-      // Clean up the URL
       let cleanUrl = url.trim();
       
-      // Handle different GitHub URL formats
+      cleanUrl = cleanUrl.replace(/\/$/, '');
+      
       const patterns = [
-        // https://github.com/owner/repo/tree/branch/path
-        { regex: /github\.com\/([^\/]+)\/([^\/]+)\/tree\/([^\/]+)\/(.*)/, hasPath: true },
-        // https://github.com/owner/repo/tree/branch
-        { regex: /github\.com\/([^\/]+)\/([^\/]+)\/tree\/([^\/\?#]+)/, hasPath: false },
-        // https://github.com/owner/repo
-        { regex: /github\.com\/([^\/]+)\/([^\/\?#]+)(?:\.git)?(?:\/)?$/, hasPath: false },
-        // Handle .git URLs
-        { regex: /github\.com\/([^\/]+)\/([^\/\?#]+)\.git$/, hasPath: false }
+        /^https?:\/\/github\.com\/([^\/]+)\/([^\/\?\#]+)(?:\.git)?$/,
+        /^github\.com\/([^\/]+)\/([^\/\?\#]+)(?:\.git)?$/,
+        /^([^\/]+)\/([^\/\?\#]+)$/,
       ];
 
       let match = null;
-      let matchedPattern = null;
       
       for (const pattern of patterns) {
-        match = cleanUrl.match(pattern.regex);
-        if (match) {
-          matchedPattern = pattern;
-          break;
-        }
+        match = cleanUrl.match(pattern);
+        if (match) break;
       }
       
       if (!match) {
@@ -88,24 +77,64 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
       const owner = match[1];
       let repo = match[2];
       
-      // Remove .git suffix if present
       repo = repo.replace(/\.git$/, '');
       
-      // Get branch and path
-      let branch = match[3] || 'main';
-      let initialPath = '';
-      
-      if (matchedPattern?.hasPath && match[4]) {
-        initialPath = match[4];
-      }
+      const branch = 'main';
 
-      return { owner, repo, branch, initialPath };
+      return { owner, repo, branch };
     } catch (error) {
       throw new Error('Please enter a valid GitHub repository URL (e.g., https://github.com/owner/repo)');
     }
   };
 
-  // Fetch directory contents (non-recursive, like GitHub)
+  const detectDefaultBranch = async (owner: string, repo: string): Promise<string> => {
+    try {
+      // First, try to get repository info to find default branch
+      const repoApiUrl = `https://api.github.com/repos/${owner}/${repo}`;
+      console.log('Fetching repo info from:', repoApiUrl);
+      
+      const response = await fetch(repoApiUrl, {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'GitHub-Import-Tool'
+        }
+      });
+      
+      if (response.ok) {
+        const repoData = await response.json();
+        console.log('Repo data received:', { default_branch: repoData.default_branch });
+        return repoData.default_branch || 'main';
+      }
+      
+      console.log('Repo API failed, trying branch detection...');
+      
+      const branches = ['main', 'master'];
+      for (const branch of branches) {
+        const testUrl = `https://api.github.com/repos/${owner}/${repo}/contents?ref=${branch}`;
+        console.log('Testing branch:', branch, 'with URL:', testUrl);
+        
+        const testResponse = await fetch(testUrl, {
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'GitHub-Import-Tool'
+          }
+        });
+        
+        console.log('Branch test response:', testResponse.status, testResponse.ok);
+        
+        if (testResponse.ok) {
+          console.log('Found working branch:', branch);
+          return branch;
+        }
+      }
+      
+      return 'main';
+    } catch (error) {
+      console.error('Error detecting default branch:', error);
+      return 'main';
+    }
+  };
+
   const fetchDirectoryContents = async (path: string = ''): Promise<GitHubFile[]> => {
     if (!repoInfo) return [];
 
@@ -116,54 +145,69 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
       }
       apiUrl += `?ref=${repoInfo.branch}`;
       
-      console.log('Fetching:', apiUrl);
+      console.log('Fetching directory contents from:', apiUrl);
+      console.log('Current repo info:', repoInfo);
       
-      let response = await fetch(apiUrl);
-      let currentBranch = repoInfo.branch;
-      
-      // If 404 and using 'main', try 'master'
-      if (!response.ok && response.status === 404 && repoInfo.branch === 'main') {
-        console.log('Main branch failed, trying master...');
-        const masterUrl = `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/contents${path ? `/${path}` : ''}?ref=master`;
-        response = await fetch(masterUrl);
-        currentBranch = 'master';
-        
-        if (response.ok) {
-          setRepoInfo(prev => prev ? { ...prev, branch: 'master' } : null);
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'GitHub-Import-Tool'
         }
-      }
+      });
+      
+      console.log('API Response status:', response.status);
+      console.log('API Response OK:', response.ok);
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error:', response.status, errorText);
+        const errorText = await response.text().catch(() => '');
+        console.error('API Error details:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
         
         if (response.status === 404) {
-          throw new Error('Repository not found or is private');
+          throw new Error(`Repository or path not found. Please verify:\n- Repository exists and is public\n- Branch "${repoInfo.branch}" exists\n- Path "${path || 'root'}" exists`);
         } else if (response.status === 403) {
-          throw new Error('API rate limit exceeded or access forbidden');
+          const resetTime = response.headers.get('X-RateLimit-Reset');
+          const remaining = response.headers.get('X-RateLimit-Remaining');
+          throw new Error(`GitHub API rate limit exceeded${remaining ? ` (${remaining} requests remaining)` : ''}${resetTime ? `. Resets at ${new Date(parseInt(resetTime) * 1000).toLocaleTimeString()}` : ''}`);
         } else {
-          throw new Error(`GitHub API error: ${response.status}`);
+          throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
         }
       }
 
       const data = await response.json();
-      console.log('API Response:', data);
+      console.log('Raw API response:', {
+        type: typeof data,
+        isArray: Array.isArray(data),
+        length: Array.isArray(data) ? data.length : 'N/A',
+        sample: Array.isArray(data) ? data.slice(0, 3) : data
+      });
       
       if (!data) {
-        throw new Error('No data received from GitHub API');
+        console.warn('No data received from GitHub API');
+        return [];
       }
       
-      return processDirectoryData(data, path);
+      const processedFiles = processDirectoryData(data, path);
+      console.log('Processed files:', processedFiles);
+      
+      return processedFiles;
       
     } catch (error) {
-      console.error('Error fetching directory:', error);
+      console.error('Error in fetchDirectoryContents:', error);
       throw error;
     }
   };
 
-  // Process directory data
   const processDirectoryData = (data: any, currentPath: string): GitHubFile[] => {
-    console.log('Processing data:', data);
+    console.log('Processing directory data:', {
+      data,
+      currentPath,
+      dataType: typeof data,
+      isArray: Array.isArray(data)
+    });
     
     if (!data) {
       console.log('No data to process');
@@ -171,27 +215,38 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
     }
     
     if (!Array.isArray(data)) {
-      // If it's a single file, return it
-      console.log('Single file detected');
-      return [{
-        ...data,
-        path: currentPath || data.name
-      }];
-    }
-
-    if (data.length === 0) {
-      console.log('Empty array received');
+      console.log('Single file response detected');
+      if (data.name && data.type) {
+        return [{
+          name: data.name,
+          path: currentPath || data.name,
+          type: data.type === 'file' ? 'file' : 'dir',
+          download_url: data.download_url,
+          url: data.url
+        }];
+      }
       return [];
     }
 
-    console.log(`Processing ${data.length} items`);
-    
-    // Sort: directories first, then files, both alphabetically
+    if (data.length === 0) {
+      console.log('Empty directory detected');
+      return [];
+    }
+
     const processed = data
-      .filter((item: any) => item && item.name) // Filter out invalid items
-      .map((item: any) => ({
-        ...item,
-        path: currentPath ? `${currentPath}/${item.name}` : item.name
+      .filter((item: any) => {
+        const isValid = item && item.name && item.type;
+        if (!isValid) {
+          console.warn('Filtering out invalid item:', item);
+        }
+        return isValid;
+      })
+      .map((item: any): GitHubFile => ({
+        name: item.name,
+        path: currentPath ? `${currentPath}/${item.name}` : item.name,
+        type: item.type === 'file' ? 'file' : 'dir',
+        download_url: item.download_url,
+        url: item.url
       }))
       .sort((a: GitHubFile, b: GitHubFile) => {
         if (a.type !== b.type) {
@@ -200,7 +255,7 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
         return a.name.localeCompare(b.name);
       });
       
-    console.log('Processed items:', processed);
+    console.log('Final processed items:', processed);
     return processed;
   };
 
@@ -212,21 +267,49 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
     setError(null);
 
     try {
-      console.log('Parsing URL:', repoUrl.trim());
+      console.log('=== Starting repo submission ===');
+      console.log('Input URL:', repoUrl.trim());
+      
       const parsed = parseGitHubUrl(repoUrl.trim());
-      console.log('Parsed:', parsed);
+      console.log('Parsed repo info:', parsed);
       
-      const { initialPath, ...repoData } = parsed;
-      setRepoInfo(repoData);
+      const defaultBranch = await detectDefaultBranch(parsed.owner, parsed.repo);
+      console.log('Detected default branch:', defaultBranch);
       
-      console.log('Fetching repository contents...');
-      // Fetch root directory contents
-      const rootFiles = await fetchDirectoryContents(initialPath || '');
-      console.log('Received files:', rootFiles);
+      const finalRepoInfo = { ...parsed, branch: defaultBranch };
       
+      console.log('Fetching root directory contents...');
+      
+      const tempRepoInfo = finalRepoInfo;
+      let apiUrl = `https://api.github.com/repos/${tempRepoInfo.owner}/${tempRepoInfo.repo}/contents?ref=${tempRepoInfo.branch}`;
+      
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'GitHub-Import-Tool'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error(`Repository or path not found. Please verify:\n- Repository exists and is public\n- Branch "${tempRepoInfo.branch}" exists`);
+        } else if (response.status === 403) {
+          const resetTime = response.headers.get('X-RateLimit-Reset');
+          const remaining = response.headers.get('X-RateLimit-Remaining');
+          throw new Error(`GitHub API rate limit exceeded${remaining ? ` (${remaining} requests remaining)` : ''}${resetTime ? `. Resets at ${new Date(parseInt(resetTime) * 1000).toLocaleTimeString()}` : ''}`);
+        } else {
+          throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+        }
+      }
+
+      const data = await response.json();
+      const rootFiles = processDirectoryData(data, '');
+      console.log('Root files received:', rootFiles);
+      
+      setRepoInfo(finalRepoInfo);
       setFiles(rootFiles);
-      setCurrentPath(initialPath || '');
-      setBreadcrumbs(initialPath ? initialPath.split('/') : []);
+      setCurrentPath('');
+      setBreadcrumbs([]);
       setStep('browsing');
       
     } catch (error) {
@@ -237,7 +320,6 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
     }
   };
 
-  // Navigate to folder
   const navigateToFolder = async (folderPath: string) => {
     setLoading(true);
     setError(null);
@@ -255,7 +337,6 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
     }
   };
 
-  // Navigate back
   const navigateBack = () => {
     const pathParts = currentPath.split('/');
     pathParts.pop();
@@ -263,18 +344,15 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
     navigateToFolder(parentPath);
   };
 
-  // Navigate to specific breadcrumb
   const navigateToBreadcrumb = (index: number) => {
     const newPath = breadcrumbs.slice(0, index + 1).join('/');
     navigateToFolder(newPath);
   };
 
-  // Navigate to root
   const navigateToRoot = () => {
     navigateToFolder('');
   };
 
-  // Detect language from file extension
   const detectLanguageFromFilename = (filename: string): string => {
     const extension = filename.split('.').pop()?.toLowerCase() || '';
     
@@ -359,30 +437,6 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
     }
   };
 
-  // Get file icon based on extension
-  const getFileIcon = (filename: string) => {
-    const extension = filename.split('.').pop()?.toLowerCase() || '';
-    
-    const iconMap: { [key: string]: string } = {
-      'js': '📄',
-      'jsx': '⚛️',
-      'ts': '📘',
-      'tsx': '⚛️',
-      'py': '🐍',
-      'java': '☕',
-      'html': '🌐',
-      'css': '🎨',
-      'json': '📋',
-      'md': '📝',
-      'yml': '⚙️',
-      'yaml': '⚙️',
-      'sh': '🐚',
-      'bash': '🐚',
-    };
-
-    return iconMap[extension] || '📄';
-  };
-
   if (!isVisible) return null;
 
   return (
@@ -394,7 +448,8 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
         className="rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
         style={{ 
           backgroundColor: theme.background,
-          border: `1px solid ${theme.primary}40`
+          border: `1px solid ${theme.primary}40`,
+          fontFamily: 'var(--font-poppins), sans-serif'
         }}
       >
         {/* Header */}
@@ -405,7 +460,10 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
           <div className="flex items-center gap-2">
             <Github size={20} style={{ color: theme.primary }} />
             <h2 className="text-lg font-semibold" style={{ color: theme.primary }}>
-              Import from GitHub
+              {step === 'browsing' && repoInfo 
+                ? `${repoInfo.owner}/${repoInfo.repo} (${repoInfo.branch})`
+                : "Import from GitHub"
+              }
             </h2>
           </div>
           <button
@@ -429,21 +487,22 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
                   type="text"
                   value={repoUrl}
                   onChange={(e) => setRepoUrl(e.target.value)}
-                  placeholder="https://github.com/owner/repository"
+                  placeholder="https://github.com/yulkazs/duckbin"
                   className="w-full px-3 py-2 border rounded-md outline-none focus:ring-2"
                   style={{
                     backgroundColor: theme.background,
                     borderColor: theme.primary + '40',
                     color: theme.primary,
+                    fontFamily: 'var(--font-poppins), sans-serif'
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && handleRepoSubmit()}
                 />
               </div>
 
               {error && (
-                <div className="text-red-500 text-sm flex items-center gap-2">
+                <div className="text-red-500 text-sm flex items-center gap-2 p-3 rounded border border-red-200 bg-red-50">
                   <X size={16} />
-                  {error}
+                  <div className="whitespace-pre-line">{error}</div>
                 </div>
               )}
 
@@ -451,20 +510,31 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
                 <button
                   onClick={onClose}
                   className="px-4 py-2 text-sm rounded hover:opacity-70"
-                  style={{ color: theme.primary }}
+                  style={{ 
+                    color: theme.primary,
+                    fontFamily: 'var(--font-poppins), sans-serif'
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleRepoSubmit}
                   disabled={!repoUrl.trim() || loading}
-                  className="px-4 py-2 text-sm rounded font-medium disabled:opacity-50"
+                  className="px-4 py-2 text-sm rounded font-medium disabled:opacity-50 flex items-center gap-2"
                   style={{
                     backgroundColor: theme.primary,
-                    color: theme.background
+                    color: theme.background,
+                    fontFamily: 'var(--font-poppins), sans-serif'
                   }}
                 >
-                  {loading ? 'Loading...' : 'Browse Repository'}
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    'Browse Repository'
+                  )}
                 </button>
               </div>
             </div>
@@ -472,22 +542,20 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
 
           {step === 'browsing' && (
             <div className="flex-1 flex flex-col">
-              {/* Repository info and breadcrumbs */}
-              <div 
-                className="p-4 border-b space-y-2"
-                style={{ borderColor: theme.primary + '20' }}
-              >
-                <div className="text-sm" style={{ color: theme.primary, opacity: 0.8 }}>
-                  {repoInfo && `${repoInfo.owner}/${repoInfo.repo} (${repoInfo.branch})`}
-                </div>
-                
-                {/* Breadcrumbs */}
-                {breadcrumbs.length > 0 && (
-                  <div className="flex items-center gap-1 text-sm">
+              {/* Breadcrumbs and navigation */}
+              {breadcrumbs.length > 0 && (
+                <div 
+                  className="p-4 border-b"
+                  style={{ borderColor: theme.primary + '20' }}
+                >
+                  <div className="flex items-center gap-1 text-sm flex-wrap">
                     <button
                       onClick={navigateToRoot}
-                      className="hover:opacity-70"
-                      style={{ color: theme.primary }}
+                      className="hover:opacity-70 px-1 py-0.5 rounded"
+                      style={{ 
+                        color: theme.primary,
+                        fontFamily: 'var(--font-poppins), sans-serif'
+                      }}
                     >
                       root
                     </button>
@@ -496,35 +564,50 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
                         <ChevronRight size={12} style={{ color: theme.primary, opacity: 0.5 }} />
                         <button
                           onClick={() => navigateToBreadcrumb(index)}
-                          className="hover:opacity-70"
-                          style={{ color: theme.primary }}
+                          className="hover:opacity-70 px-1 py-0.5 rounded"
+                          style={{ 
+                            color: theme.primary,
+                            fontFamily: 'var(--font-poppins), sans-serif'
+                          }}
                         >
                           {crumb}
                         </button>
                       </div>
                     ))}
                   </div>
-                )}
-                
-                {/* Back button */}
-                {currentPath && (
-                  <button
-                    onClick={navigateBack}
-                    className="flex items-center gap-1 text-sm hover:opacity-70"
-                    style={{ color: theme.primary }}
-                  >
-                    <ArrowLeft size={12} />
-                    Back
-                  </button>
-                )}
-              </div>
+                  
+                  {/* Back button */}
+                  {currentPath && (
+                    <button
+                      onClick={navigateBack}
+                      className="flex items-center gap-1 text-sm hover:opacity-70 px-2 py-1 rounded mt-2"
+                      style={{ 
+                        color: theme.primary,
+                        backgroundColor: theme.primary + '10',
+                        fontFamily: 'var(--font-poppins), sans-serif'
+                      }}
+                    >
+                      <ArrowLeft size={14} />
+                      Back
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* File listing */}
               <div className="flex-1 overflow-auto">
                 {loading ? (
                   <div className="flex items-center justify-center p-8">
                     <Loader2 size={24} className="animate-spin" style={{ color: theme.primary }} />
-                    <span className="ml-2" style={{ color: theme.primary }}>Loading...</span>
+                    <span 
+                      className="ml-2" 
+                      style={{ 
+                        color: theme.primary,
+                        fontFamily: 'var(--font-poppins), sans-serif'
+                      }}
+                    >
+                      Loading...
+                    </span>
                   </div>
                 ) : error ? (
                   <div className="p-4 text-center">
@@ -532,21 +615,53 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
                       <X size={20} />
                       <span>Error</span>
                     </div>
-                    <p className="text-red-500 text-sm">{error}</p>
-                    <button
-                      onClick={() => setStep('input')}
-                      className="mt-3 px-3 py-1 text-sm rounded"
-                      style={{
-                        backgroundColor: theme.primary + '20',
-                        color: theme.primary
-                      }}
-                    >
-                      Try Different Repository
-                    </button>
+                    <p className="text-red-500 text-sm whitespace-pre-line mb-3">{error}</p>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => navigateToFolder(currentPath)}
+                        disabled={loading}
+                        className="px-3 py-1 text-sm rounded mr-2"
+                        style={{
+                          backgroundColor: theme.primary + '20',
+                          color: theme.primary,
+                          fontFamily: 'var(--font-poppins), sans-serif'
+                        }}
+                      >
+                        Retry
+                      </button>
+                      <button
+                        onClick={() => setStep('input')}
+                        className="px-3 py-1 text-sm rounded"
+                        style={{
+                          backgroundColor: theme.primary + '10',
+                          color: theme.primary,
+                          fontFamily: 'var(--font-poppins), sans-serif'
+                        }}
+                      >
+                        Try Different Repository
+                      </button>
+                    </div>
                   </div>
                 ) : files.length === 0 ? (
-                  <div className="p-8 text-center" style={{ color: theme.primary, opacity: 0.6 }}>
-                    This directory is empty
+                  <div 
+                    className="p-8 text-center" 
+                    style={{ 
+                      color: theme.primary, 
+                      opacity: 0.6,
+                      fontFamily: 'var(--font-poppins), sans-serif'
+                    }}
+                  >
+                    <div className="mb-2">This directory is empty</div>
+                    <button
+                      onClick={() => setStep('input')}
+                      className="text-sm underline hover:no-underline"
+                      style={{ 
+                        color: theme.primary,
+                        fontFamily: 'var(--font-poppins), sans-serif'
+                      }}
+                    >
+                      Try a different repository
+                    </button>
                   </div>
                 ) : (
                   <div className="p-2">
@@ -554,7 +669,7 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
                       <button
                         key={file.path}
                         onClick={() => file.type === 'file' ? handleFileImport(file) : navigateToFolder(file.path)}
-                        className="w-full flex items-center gap-3 p-3 rounded text-left hover:opacity-70 cursor-pointer"
+                        className="w-full flex items-center gap-3 p-3 rounded text-left hover:opacity-70 cursor-pointer transition-colors"
                         style={{
                           backgroundColor: 'transparent',
                         }}
@@ -566,16 +681,16 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
                         }}
                       >
                         {file.type === 'dir' ? (
-                          <Folder size={18} style={{ color: theme.primary }} />
+                          <Folder size={18} style={{ color: theme.primary, opacity: 0.8 }} />
                         ) : (
-                          <div className="flex items-center">
-                            <span className="mr-1">{getFileIcon(file.name)}</span>
-                            <File size={16} style={{ color: theme.primary, opacity: 0.7 }} />
-                          </div>
+                          <File size={18} style={{ color: theme.primary, opacity: 0.7 }} />
                         )}
                         <span 
-                          style={{ color: theme.primary }}
-                          className="font-mono text-sm"
+                          style={{ 
+                            color: theme.primary,
+                            fontFamily: 'var(--font-poppins), sans-serif'
+                          }}
+                          className="text-sm flex-1"
                         >
                           {file.name}
                         </span>
@@ -583,9 +698,7 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
                           <ChevronRight size={16} className="ml-auto" style={{ color: theme.primary, opacity: 0.5 }} />
                         )}
                         {file.type === 'file' && (
-                          <span className="text-xs ml-auto" style={{ color: theme.primary, opacity: 0.5 }}>
-                            Click to import
-                          </span>
+                          <Download size={14} className="ml-auto opacity-50" style={{ color: theme.primary }} />
                         )}
                       </button>
                     ))}
@@ -598,7 +711,14 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
           {step === 'importing' && (
             <div className="p-8 text-center">
               <Loader2 size={32} className="animate-spin mx-auto mb-4" style={{ color: theme.primary }} />
-              <p style={{ color: theme.primary }}>Importing file...</p>
+              <p 
+                style={{ 
+                  color: theme.primary,
+                  fontFamily: 'var(--font-poppins), sans-serif'
+                }}
+              >
+                Importing file...
+              </p>
             </div>
           )}
         </div>
