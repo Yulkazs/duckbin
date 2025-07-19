@@ -3,6 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { Download, Loader2, Check, X, Folder, File, ChevronRight, ArrowLeft, Github } from 'lucide-react';
+import { 
+  SiJavascript, SiTypescript, SiPython, SiCplusplus, SiC, SiGo, SiRust, 
+  SiPhp, SiRuby, SiSwift, SiKotlin, SiScala, SiDart, SiHtml5, SiCss3, SiSass, SiMarkdown, 
+  SiJson, SiYaml, SiToml, SiDocker, SiMysql, SiGraphql, SiGnubash, SiPerl, SiLua
+} from 'react-icons/si';
+import { TbBrandCSharp } from "react-icons/tb";
+import { FaFileAlt, FaJava } from 'react-icons/fa';
+import { VscTerminalPowershell } from 'react-icons/vsc';
+import { BsFiletypeExe } from 'react-icons/bs';
 
 interface GitHubFile {
   name: string;
@@ -408,6 +417,72 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
     return languageMap[extension] || 'plaintext';
   };
 
+  const getLanguageIcon = (filename: string) => {
+        const extension = filename.split('.').pop()?.toLowerCase() || '';
+        const baseName = filename.toLowerCase();
+        
+        // Special cases first
+        if (baseName === 'dockerfile' || baseName.includes('dockerfile')) {
+            return <SiDocker size={14} />;
+        }
+        
+        // Extension-based mapping - store components, not elements
+        const iconMap: { [key: string]: React.ComponentType<{ size: number }> } = {
+            'js': SiJavascript,
+            'jsx': SiJavascript,
+            'mjs': SiJavascript,
+            'ts': SiTypescript,
+            'tsx': SiTypescript,
+            'py': SiPython,
+            'pyw': SiPython,
+            'java': FaJava,
+            'c': SiC,
+            'cpp': SiCplusplus,
+            'cc': SiCplusplus,
+            'cxx': SiCplusplus,
+            'h': SiC,
+            'hpp': SiCplusplus,
+            'cs': TbBrandCSharp,
+            'php': SiPhp,
+            'rb': SiRuby,
+            'go': SiGo,
+            'rs': SiRust,
+            'swift': SiSwift,
+            'kt': SiKotlin,
+            'scala': SiScala,
+            'dart': SiDart,
+            'html': SiHtml5,
+            'htm': SiHtml5,
+            'css': SiCss3,
+            'scss': SiSass,
+            'sass': SiSass,
+            'json': SiJson,
+            'yaml': SiYaml,
+            'yml': SiYaml,
+            'toml': SiToml,
+            'md': SiMarkdown,
+            'markdown': SiMarkdown,
+            'sql': SiMysql,
+            'graphql': SiGraphql,
+            'sh': SiGnubash,
+            'bash': SiGnubash,
+            'zsh': SiGnubash,
+            'fish': SiGnubash,
+            'ps1': VscTerminalPowershell,
+            'bat': BsFiletypeExe,
+            'pl': SiPerl,
+            'lua': SiLua,
+            'txt': FaFileAlt
+        };
+        
+        const IconComponent = iconMap[extension];
+        if (IconComponent) {
+            return <IconComponent size={14} />;
+        }
+        
+        return <File size={18} />;
+    };
+
   // Import file
   const handleFileImport = async (file: GitHubFile) => {
     if (!file.download_url) {
@@ -680,11 +755,13 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
                           e.currentTarget.style.backgroundColor = 'transparent';
                         }}
                       >
-                        {file.type === 'dir' ? (
-                          <Folder size={18} style={{ color: theme.primary, opacity: 0.8 }} />
-                        ) : (
-                          <File size={18} style={{ color: theme.primary, opacity: 0.7 }} />
-                        )}
+                        <div style={{ color: theme.primary, opacity: file.type === 'dir' ? 0.8 : 0.7 }}>
+                          {file.type === 'dir' ? (
+                            <Folder size={18} />
+                          ) : (
+                            getLanguageIcon(file.name)
+                          )}
+                        </div>
                         <span 
                           style={{ 
                             color: theme.primary,
@@ -706,22 +783,51 @@ export const ImportGithub: React.FC<ImportGithubProps> = ({
                 )}
               </div>
             </div>
-          )}
-
-          {step === 'importing' && (
+            )}
+                      {step === 'importing' && (
             <div className="p-8 text-center">
-              <Loader2 size={32} className="animate-spin mx-auto mb-4" style={{ color: theme.primary }} />
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Loader2 size={24} className="animate-spin" style={{ color: theme.primary }} />
+                <span 
+                  className="text-lg" 
+                  style={{ 
+                    color: theme.primary,
+                    fontFamily: 'var(--font-poppins), sans-serif'
+                  }}
+                >
+                  Importing file...
+                </span>
+              </div>
               <p 
+                className="text-sm opacity-70" 
                 style={{ 
                   color: theme.primary,
                   fontFamily: 'var(--font-poppins), sans-serif'
                 }}
               >
-                Importing file...
+                Please wait while we download and process the file
               </p>
             </div>
           )}
         </div>
+
+        {/* Footer - Only show when browsing and not loading */}
+        {step === 'browsing' && !loading && (
+          <div 
+            className="p-4 border-t text-center"
+            style={{ borderColor: theme.primary + '20' }}
+          >
+            <p 
+              className="text-xs opacity-60" 
+              style={{ 
+                color: theme.primary,
+                fontFamily: 'var(--font-poppins), sans-serif'
+              }}
+            >
+              Click on a file to import it into the editor
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
