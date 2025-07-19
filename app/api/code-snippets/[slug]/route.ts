@@ -27,43 +27,37 @@ function isValidSlug(slug: string): boolean {
 // GET - Retrieve a specific code snippet by slug
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: { slug: string } }
 ) {
   try {
-    console.log('GET /api/code-snippets/[slug] - Starting request');
     await connectDB();
-    
-    const { slug } = params;
-    console.log('Fetching snippet by slug:', slug);
 
-    if (!slug || !isValidSlug(slug)) {
-      console.log('Invalid slug format:', slug);
+    const { slug } = context.params;
+
+    if (!slug || !/^[a-zA-Z0-9]{7}$/.test(slug)) {
       return NextResponse.json(
-        { error: 'Invalid slug format. Slug must be exactly 7 alphanumeric characters.' },
+        { error: 'Invalid slug format. Must be 7 alphanumeric characters.' },
         { status: 400 }
       );
     }
 
     const snippet = await CodeSnippet.findOne({ slug });
-    
+
     if (!snippet) {
-      console.log('Snippet not found for slug:', slug);
       return NextResponse.json(
         { error: 'Code snippet not found' },
         { status: 404 }
       );
     }
 
-    console.log('Snippet found:', snippet._id);
-    return NextResponse.json({ 
+    return NextResponse.json({
       snippet,
       url: `${request.nextUrl.origin}/${snippet.slug}`
     });
 
   } catch (error) {
-    console.error('Error in GET /api/code-snippets/[slug]:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Internal server error', details: (error as Error).message },
       { status: 500 }
     );
   }
