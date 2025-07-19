@@ -1,3 +1,4 @@
+// lib/snippets.ts
 export interface CodeSnippetData {
   _id?: string;
   title: string;
@@ -45,80 +46,110 @@ export interface GetSnippetsParams {
 
 class CodeSnippetService {
   private baseUrl = '/api/code-snippets';
-  private slugUrl = '/api/slug';
 
-  // Use slug endpoint for creating snippets since that's where the POST handler is
+  // Helper method to handle fetch responses
+  private async handleResponse<T>(response: Response): Promise<T> {
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error('API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        data
+      });
+      throw new Error(data.error || data.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return data;
+  }
+
+  // Create a new snippet
   async createSnippet(data: CreateSnippetRequest): Promise<SnippetResponse> {
-    const response = await fetch(this.slugUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
+    console.log('Creating snippet with data:', {
+      title: data.title.substring(0, 50) + (data.title.length > 50 ? '...' : ''),
+      codeLength: data.code.length,
+      language: data.language,
+      theme: data.theme
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to create snippet');
-    }
+    try {
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
 
-    return response.json();
+      return await this.handleResponse<SnippetResponse>(response);
+    } catch (error) {
+      console.error('Error creating snippet:', error);
+      throw error;
+    }
   }
 
+  // Get snippet by slug
   async getSnippetBySlug(slug: string): Promise<SnippetResponse> {
-    if (!slug || slug.length !== 7 || !/^[a-zA-Z0-9]{7}$/.test(slug)) {
+    if (!this.isValidSlug(slug)) {
       throw new Error('Invalid slug format. Slug must be exactly 7 alphanumeric characters.');
     }
 
-    const response = await fetch(`${this.slugUrl}/${slug}`);
+    console.log('Fetching snippet by slug:', slug);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch snippet');
+    try {
+      const response = await fetch(`${this.baseUrl}/${slug}`);
+      return await this.handleResponse<SnippetResponse>(response);
+    } catch (error) {
+      console.error('Error fetching snippet by slug:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
+  // Update snippet by slug
   async updateSnippetBySlug(slug: string, data: UpdateSnippetRequest): Promise<SnippetResponse> {
-    if (!slug || slug.length !== 7 || !/^[a-zA-Z0-9]{7}$/.test(slug)) {
+    if (!this.isValidSlug(slug)) {
       throw new Error('Invalid slug format. Slug must be exactly 7 alphanumeric characters.');
     }
 
-    const response = await fetch(`${this.slugUrl}/${slug}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
+    console.log('Updating snippet by slug:', slug, data);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to update snippet');
+    try {
+      const response = await fetch(`${this.baseUrl}/${slug}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      return await this.handleResponse<SnippetResponse>(response);
+    } catch (error) {
+      console.error('Error updating snippet by slug:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
+  // Delete snippet by slug
   async deleteSnippetBySlug(slug: string): Promise<SnippetResponse> {
-    if (!slug || slug.length !== 7 || !/^[a-zA-Z0-9]{7}$/.test(slug)) {
+    if (!this.isValidSlug(slug)) {
       throw new Error('Invalid slug format. Slug must be exactly 7 alphanumeric characters.');
     }
 
-    const response = await fetch(`${this.slugUrl}/${slug}`, {
-      method: 'DELETE',
-    });
+    console.log('Deleting snippet by slug:', slug);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to delete snippet');
+    try {
+      const response = await fetch(`${this.baseUrl}/${slug}`, {
+        method: 'DELETE',
+      });
+
+      return await this.handleResponse<SnippetResponse>(response);
+    } catch (error) {
+      console.error('Error deleting snippet by slug:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
-  // Use code-snippets endpoint for listing (GET requests)
+  // Get all snippets with pagination and filtering
   async getSnippets(params: GetSnippetsParams = {}): Promise<SnippetsListResponse> {
     const searchParams = new URLSearchParams();
     
@@ -129,55 +160,64 @@ class CodeSnippetService {
 
     const url = `${this.baseUrl}${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
     
-    const response = await fetch(url);
+    console.log('Fetching snippets:', url);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch snippets');
+    try {
+      const response = await fetch(url);
+      return await this.handleResponse<SnippetsListResponse>(response);
+    } catch (error) {
+      console.error('Error fetching snippets:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
+  // Get snippet by ID
   async getSnippetById(id: string): Promise<SnippetResponse> {
-    const response = await fetch(`${this.baseUrl}?id=${id}`);
+    console.log('Fetching snippet by ID:', id);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch snippet');
+    try {
+      const response = await fetch(`${this.baseUrl}?id=${encodeURIComponent(id)}`);
+      return await this.handleResponse<SnippetResponse>(response);
+    } catch (error) {
+      console.error('Error fetching snippet by ID:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
+  // Update snippet by ID
   async updateSnippet(id: string, data: UpdateSnippetRequest): Promise<SnippetResponse> {
-    const response = await fetch(`${this.baseUrl}?id=${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
+    console.log('Updating snippet by ID:', id, data);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to update snippet');
+    try {
+      const response = await fetch(`${this.baseUrl}?id=${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      return await this.handleResponse<SnippetResponse>(response);
+    } catch (error) {
+      console.error('Error updating snippet by ID:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
+  // Delete snippet by ID
   async deleteSnippet(id: string): Promise<SnippetResponse> {
-    const response = await fetch(`${this.baseUrl}?id=${id}`, {
-      method: 'DELETE',
-    });
+    console.log('Deleting snippet by ID:', id);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to delete snippet');
+    try {
+      const response = await fetch(`${this.baseUrl}?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+
+      return await this.handleResponse<SnippetResponse>(response);
+    } catch (error) {
+      console.error('Error deleting snippet by ID:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
   // Utility methods
@@ -196,21 +236,21 @@ class CodeSnippetService {
   validateSnippetData(data: CreateSnippetRequest): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
 
-    if (!data.title.trim()) {
+    if (!data.title?.trim()) {
       errors.push('Title is required');
     } else if (data.title.length > 100) {
       errors.push('Title must be 100 characters or less');
     }
 
-    if (!data.code.trim()) {
+    if (!data.code?.trim()) {
       errors.push('Code content is required');
     }
 
-    if (!data.language) {
+    if (!data.language?.trim()) {
       errors.push('Language is required');
     }
 
-    if (!data.theme) {
+    if (!data.theme?.trim()) {
       errors.push('Theme is required');
     }
 
@@ -218,6 +258,19 @@ class CodeSnippetService {
       isValid: errors.length === 0,
       errors
     };
+  }
+
+  // Helper method to format error messages for UI display
+  formatError(error: Error): string {
+    if (error.message.includes('fetch')) {
+      return 'Unable to connect to server. Please check your internet connection.';
+    }
+    
+    if (error.message.includes('JSON')) {
+      return 'Server returned invalid response. Please try again.';
+    }
+    
+    return error.message || 'An unexpected error occurred';
   }
 }
 
