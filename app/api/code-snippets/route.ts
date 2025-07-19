@@ -24,7 +24,6 @@ async function safeParseJSON(request: NextRequest) {
 // GET - Retrieve all code snippets or a specific one by ID
 export async function GET(request: NextRequest) {
   try {
-    console.log('GET /api/code-snippets - Starting request');
     await connectDB();
     
     const { searchParams } = new URL(request.url);
@@ -103,12 +102,7 @@ export async function GET(request: NextRequest) {
 // POST - Create a new code snippet
 export async function POST(request: NextRequest) {
   try {
-    console.log('POST /api/code-snippets - Starting request');
-    
-    // Connect to database first
-    console.log('Connecting to database...');
     await connectDB();
-    console.log('Database connected successfully');
     
     // Parse request body
     console.log('Parsing request body...');
@@ -154,31 +148,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique slug
-    console.log('Generating unique slug...');
     const slug = await generateUniqueSlug();
-    console.log('Generated slug:', slug);
 
-    // Create new snippet
-    console.log('Creating new code snippet...');
     const snippetData = {
       title: title.trim(),
       code,
       language,
       theme,
-      slug // Add the generated slug here - THIS IS THE KEY ADDITION
+      slug
     };
-    
-    console.log('Snippet data to save:', {
-      ...snippetData,
-      code: `${code.substring(0, 100)}${code.length > 100 ? '...' : ''}`
-    });
 
     const newSnippet = new CodeSnippet(snippetData);
     
-    console.log('Saving snippet to database...');
     const savedSnippet = await newSnippet.save();
-    console.log('Snippet saved successfully with ID:', savedSnippet._id, 'and slug:', savedSnippet.slug);
 
     const response = {
       message: 'Code snippet created successfully',
@@ -186,7 +168,6 @@ export async function POST(request: NextRequest) {
       url: `${request.nextUrl.origin}/${savedSnippet.slug}`
     };
 
-    console.log('Returning success response');
     return NextResponse.json(response, { status: 201 });
 
   } catch (error) {
@@ -216,7 +197,6 @@ export async function POST(request: NextRequest) {
 // PUT - Update an existing code snippet by ID
 export async function PUT(request: NextRequest) {
   try {
-    console.log('PUT /api/code-snippets - Starting request');
     await connectDB();
     
     const { searchParams } = new URL(request.url);
@@ -305,7 +285,6 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete a code snippet by ID
 export async function DELETE(request: NextRequest) {
   try {
-    console.log('DELETE /api/code-snippets - Starting request');
     await connectDB();
     
     const { searchParams } = new URL(request.url);

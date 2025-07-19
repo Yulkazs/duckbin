@@ -32,9 +32,9 @@ export default function Page() {
           value={code}
           onChange={handleCodeChange}
           language={selectedLanguage}
+          onLanguageChange={setSelectedLanguage}
           height="600px"
           className="w-full"
-          placeholder="// Welcome to Duckbin"
         />
       </div>
     </div>

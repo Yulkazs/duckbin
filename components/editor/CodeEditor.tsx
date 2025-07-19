@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { getSyntaxColors, createMonacoTheme } from '@/utils/syntax-colors';
 import { snippetService } from '@/lib/snippets';
-import { Save, Loader2, Check, X } from 'lucide-react';
+import { getLanguageById, languages } from '@/utils/languages';
+import { Save, Loader2, Check, X, Download } from 'lucide-react';
+import { ImportGithub } from '@/components/selectors/ImportGithub';
 
 // Monaco Editor types
 interface MonacoEditor {
@@ -30,6 +32,8 @@ interface CodeEditorProps {
   // Add save-related props
   onSave?: (savedSnippet: any) => void;
   showSaveButton?: boolean;
+  // Add language change callback
+  onLanguageChange?: (language: string) => void;
 }
 
 export const CodeEditor: React.FC<CodeEditorProps> = ({
@@ -44,7 +48,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onTitleChange,
   createdAt = new Date().toLocaleDateString('en-GB'),
   onSave,
-  showSaveButton = true
+  showSaveButton = true,
+  onLanguageChange
 }) => {
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -61,6 +66,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Import functionality states
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [importError, setImportError] = useState<string | null>(null);
+
   // Calculate stats
   const characterCount = value.length;
   const lineCount = value.split('\n').length;
@@ -73,6 +83,60 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       if (onTitleChange) {
         onTitleChange(newTitle);
       }
+    }
+  };
+
+  // Detect language from file extension
+  const detectLanguageFromFilename = (filename: string): string => {
+    const extension = filename.split('.').pop()?.toLowerCase() || '';
+    
+    // Find language by extension
+    const detectedLanguage = languages.find(lang => 
+      lang.extension === extension || 
+      (lang.id === 'typescript' && (extension === 'tsx' || extension === 'ts')) ||
+      (lang.id === 'javascript' && (extension === 'jsx' || extension === 'js' || extension === 'mjs')) ||
+      (lang.id === 'python' && (extension === 'py' || extension === 'pyw')) ||
+      (lang.id === 'markdown' && (extension === 'md' || extension === 'markdown')) ||
+      (lang.id === 'yaml' && (extension === 'yaml' || extension === 'yml')) ||
+      (lang.id === 'dockerfile' && (extension === 'dockerfile' || filename.toLowerCase() === 'dockerfile'))
+    );
+
+    return detectedLanguage?.id || 'plaintext';
+  };
+
+  // Handle import from GitHub component
+  const handleGitHubImport = (content: string, filename: string, detectedLanguage: string) => {
+    try {
+      // Update editor content
+      onChange(content);
+      
+      // Update language if callback is provided
+      if (onLanguageChange) {
+        onLanguageChange(detectedLanguage);
+      }
+
+      // Update title with filename if no title is set
+      if (!localTitle.trim() || localTitle === 'Untitled Snippet') {
+        handleTitleChange(filename);
+      }
+
+      setImportStatus('success');
+
+      // Reset success status after 2 seconds
+      setTimeout(() => {
+        setImportStatus('idle');
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error handling GitHub import:', error);
+      setImportStatus('error');
+      setImportError(error instanceof Error ? error.message : 'Failed to import file');
+      
+      // Reset error status after 3 seconds
+      setTimeout(() => {
+        setImportStatus('idle');
+        setImportError(null);
+      }, 3000);
     }
   };
 
@@ -325,6 +389,39 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     setLocalTitle(title);
   }, [title]);
 
+  // Render import button
+  const renderImportButton = () => {
+    return (
+      <button
+        onClick={() => setShowImportModal(true)}
+        className="flex items-center gap-2 px-3 py-1 rounded text-sm font-medium transition-all duration-200 mr-2"
+        style={{
+          backgroundColor: importStatus === 'success' ? '#10b981' : importStatus === 'error' ? '#ef4444' : theme.primary + '20',
+          color: importStatus === 'success' || importStatus === 'error' ? theme.background : theme.primary,
+          border: `1px solid ${theme.primary}40`,
+        }}
+        title="Import file from GitHub"
+      >
+        {importStatus === 'success' ? (
+          <>
+            <Check size={14} />
+            <span>Imported!</span>
+          </>
+        ) : importStatus === 'error' ? (
+          <>
+            <X size={14} />
+            <span>Error</span>
+          </>
+        ) : (
+          <>
+            <Download size={14} />
+            <span>Import</span>
+          </>
+        )}
+      </button>
+    );
+  };
+
   // Render save button
   const renderSaveButton = () => {
     if (!showSaveButton) return null;
@@ -410,95 +507,114 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   }
 
   return (
-    <div className={`${className}`}>
-      <div 
-        className="border rounded-lg overflow-hidden relative flex flex-col"
-        style={{ 
-          height,
-          borderColor: theme.primary + '40',
-          backgroundColor: theme.background
-        }}
-      >
-        {/* Title bar - integrated at the top */}
+    <>
+      <div className={`${className}`}>
         <div 
-          className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0"
+          className="border rounded-lg overflow-hidden relative flex flex-col"
           style={{ 
-            borderColor: theme.primary + '20',
-            backgroundColor: theme.background,
-            height: '36px'
+            height,
+            borderColor: theme.primary + '40',
+            backgroundColor: theme.background
           }}
         >
-          <input
-            type="text"
-            value={localTitle}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            placeholder="Your title"
-            maxLength={100}
-            className="text-sm px-2 py-1 rounded border-0 outline-none bg-transparent flex-1"
+          {/* Title bar - integrated at the top */}
+          <div 
+            className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0"
             style={{ 
-              color: theme.primary,
-              backgroundColor: 'transparent',
-              fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace'
-            }}
-          />
-          
-          {/* Save button */}
-          {renderSaveButton()}
-        </div>
-
-        {/* Editor container */}
-        <div 
-          ref={containerRef}
-          className="w-full flex-1"
-          style={{ minHeight: 0 }}
-        />
-        
-        {/* Placeholder overlay */}
-        {placeholder && (
-          <div
-            ref={placeholderRef}
-            className="absolute pointer-events-none"
-            style={{
-              top: '56px',
-              left: '60px',
-              fontSize: '14px',
-              fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
-              color: theme.primary,
-              opacity: 0.5,
-              display: !value && placeholder ? 'block' : 'none'
+              borderColor: theme.primary + '20',
+              backgroundColor: theme.background,
+              height: '36px'
             }}
           >
-            {placeholder}
+            <input
+              type="text"
+              value={localTitle}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              placeholder="Your title"
+              maxLength={100}
+              className="text-sm px-2 py-1 rounded border-0 outline-none bg-transparent flex-1"
+              style={{ 
+                color: theme.primary,
+                backgroundColor: 'transparent',
+                fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace'
+              }}
+            />
+            
+            <div className="flex items-center">
+              {/* Import button */}
+              {renderImportButton()}
+              
+              {/* Save button */}
+              {renderSaveButton()}
+            </div>
           </div>
-        )}
 
-        {/* Bottom status bar - integrated at the bottom */}
-        <div 
-          className="flex justify-between items-center px-4 py-1 border-t text-xs flex-shrink-0"
-          style={{ 
-            borderColor: theme.primary + '20',
-            backgroundColor: theme.background,
-            color: theme.primary,
-            opacity: 0.8,
-            height: '28px'
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <span>{createdAt}</span>
-            {saveError && (
-              <span className="text-red-500" title={saveError}>
-                ⚠️ {saveError}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-4">
-            <span>{displayLanguage}</span>
-            <span>{characterCount} characters</span>
-            <span>{lineCount} lines</span>
+          {/* Editor container */}
+          <div 
+            ref={containerRef}
+            className="w-full flex-1"
+            style={{ minHeight: 0 }}
+          />
+          
+          {/* Placeholder overlay */}
+          {placeholder && (
+            <div
+              ref={placeholderRef}
+              className="absolute pointer-events-none"
+              style={{
+                top: '56px',
+                left: '60px',
+                fontSize: '14px',
+                fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
+                color: theme.primary,
+                opacity: 0.5,
+                display: !value && placeholder ? 'block' : 'none'
+              }}
+            >
+              {placeholder}
+            </div>
+          )}
+
+          {/* Bottom status bar - integrated at the bottom */}
+          <div 
+            className="flex justify-between items-center px-4 py-1 border-t text-xs flex-shrink-0"
+            style={{ 
+              borderColor: theme.primary + '20',
+              backgroundColor: theme.background,
+              color: theme.primary,
+              opacity: 0.8,
+              height: '28px'
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span>{createdAt}</span>
+              {saveError && (
+                <span className="text-red-500" title={saveError}>
+                  ⚠️ {saveError}
+                </span>
+              )}
+              {importError && (
+                <span className="text-red-500" title={importError}>
+                  ⚠️ {importError}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-4">
+              <span>{displayLanguage}</span>
+              <span>{characterCount} characters</span>
+              <span>{lineCount} lines</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* GitHub Import Modal */}
+      <ImportGithub
+        onImport={handleGitHubImport}
+        onClose={() => setShowImportModal(false)}
+        isVisible={showImportModal}
+      />
+    </>
   );
 };
 
