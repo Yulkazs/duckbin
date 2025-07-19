@@ -27,12 +27,12 @@ function isValidSlug(slug: string): boolean {
 // GET - Retrieve a specific code snippet by slug
 export async function GET(
   request: NextRequest,
-  context: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
     await connectDB();
 
-    const { slug } = context.params;
+    const { slug } = await context.params;
 
     if (!slug || !/^[a-zA-Z0-9]{7}$/.test(slug)) {
       return NextResponse.json(
@@ -66,13 +66,13 @@ export async function GET(
 // PUT - Update an existing code snippet by slug
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
     console.log('PUT /api/code-snippets/[slug] - Starting request');
     await connectDB();
     
-    const { slug } = params;
+    const { slug } = await context.params;
     console.log('Updating snippet by slug:', slug);
 
     if (!slug || !isValidSlug(slug)) {
@@ -156,13 +156,13 @@ export async function PUT(
 // DELETE - Delete a code snippet by slug
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
     console.log('DELETE /api/code-snippets/[slug] - Starting request');
     await connectDB();
     
-    const { slug } = params;
+    const { slug } = await context.params;
     console.log('Deleting snippet by slug:', slug);
 
     if (!slug || !isValidSlug(slug)) {

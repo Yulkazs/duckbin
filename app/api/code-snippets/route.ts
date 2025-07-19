@@ -1,4 +1,4 @@
-// app/api/code-snippets/[slug]/route.ts
+// app/api/code-snippets/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import CodeSnippet from '@/lib/models/CodeSnippet';
@@ -98,7 +98,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a new code snippet
 // POST - Create a new code snippet
 export async function POST(request: NextRequest) {
   try {
