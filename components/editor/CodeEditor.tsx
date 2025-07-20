@@ -5,8 +5,10 @@ import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { getSyntaxColors, createMonacoTheme } from '@/utils/syntax-colors';
 import { snippetService } from '@/lib/snippets';
 import { getLanguageById, languages } from '@/utils/languages';
-import { Save, Loader2, Check, X, Download, Copy } from 'lucide-react';
+import { Save, Loader2, Check, X, Download, Copy, AlertCircle } from 'lucide-react';
 import { ImportGithub } from '@/components/selectors/ImportGithub';
+import { SimpleToast } from '@/components/ui/Toast';
+import { Loading } from '@/components/ui/Loading'; // Add this import
 
 // Monaco Editor types
 interface MonacoEditor {
@@ -29,10 +31,8 @@ interface CodeEditorProps {
   title?: string;
   onTitleChange?: (title: string) => void;
   createdAt?: string;
-  // Add save-related props
   onSave?: (savedSnippet: any) => void;
   showSaveButton?: boolean;
-  // Add language change callback
   onLanguageChange?: (language: string) => void;
 }
 
@@ -71,10 +71,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importError, setImportError] = useState<string | null>(null);
 
-  // Toast notification states
   const [toast, setToast] = useState<{
     message: string;
-    type: 'success' | 'error' | 'info';
+    type: 'success' | 'error' | 'info' | 'warning';
     visible: boolean;
   }>({
     message: '',
@@ -97,7 +96,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   };
 
   // Show toast notification
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+  const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
     setToast({
       message,
       type,
@@ -530,7 +529,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     const toastColors = {
       success: { bg: '#10b981', icon: <Check size={16} /> },
       error: { bg: '#ef4444', icon: <X size={16} /> },
-      info: { bg: theme.primary, icon: <Copy size={16} /> }
+      info: { bg: theme.primary, icon: <Copy size={16} /> },
+      warning: { bg: '#f59e0b', icon: <AlertCircle size={16} /> }
     };
 
     const colors = toastColors[toast.type];
@@ -570,7 +570,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     );
   }
 
-  // Show loading state
+  // Show loading state with your custom Loading component
   if (!monacoLoaded) {
     return (
       <div className={`space-y-2 ${className}`}>
@@ -583,11 +583,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             color: theme.primary
           }}
         >
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-2" 
-                 style={{ borderColor: theme.primary }}></div>
-            <p className="text-sm opacity-60">Loading Monaco Editor...</p>
-          </div>
+          <Loading />
         </div>
       </div>
     );
@@ -707,7 +703,13 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       />
 
       {/* Toast Notification */}
-      {renderToast()}
+      <SimpleToast
+        isVisible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast(prev => ({ ...prev, visible: false }))}
+        position="top-right"
+      />
     </>
   );
 };

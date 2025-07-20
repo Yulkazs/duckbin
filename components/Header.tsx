@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { ThemeDropdown } from '@/components/selectors/Theme';
 import { LanguageDropdown } from '@/components/selectors/Language';
@@ -59,8 +60,8 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Desktop and Tablet Layout */}
         <div className="flex items-center justify-between h-16">
-          {/* Logo and Title */}
-          <div className="flex items-center gap-3 sm:gap-4">
+          {/* Logo and Title - Now clickable */}
+          <Link href="/" className="flex items-center gap-3 sm:gap-4 hover:opacity-80 transition-opacity">
             <img
               src={theme.logo}
               alt="Duckbin Logo"
@@ -75,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               duckbin
             </h1>
-          </div>
+          </Link>
 
           {/* Desktop Controls and GitHub Link */}
           <div className="hidden md:flex items-center gap-3">

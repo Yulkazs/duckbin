@@ -10,12 +10,8 @@ import { Confirmation } from '@/components/ui/Confirmation';
 import { snippetService, type CodeSnippetData } from '@/lib/snippets';
 import { getLanguageById, type Language } from '@/utils/languages';
 import { Loader2, AlertCircle, Edit3, Eye, Copy, Check, Trash2 } from 'lucide-react';
-
-interface Toast {
-  id: string;
-  message: string;
-  type: 'success' | 'error' | 'info';
-}
+import { ToastContainer, useToast, type Toast } from '@/components/ui/Toast';
+import Loading from '@/components/ui/Loading';
 
 function SlugPageContent() {
   const { theme, changeTheme, currentTheme } = useThemeContext();
@@ -29,13 +25,13 @@ function SlugPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Edit state
   const [editedCode, setEditedCode] = useState('');
   const [editedTitle, setEditedTitle] = useState('');
   const [editedLanguage, setEditedLanguage] = useState('plaintext');
   const [editedTheme, setEditedTheme] = useState('dark');
+  const [showEditConfirmation, setShowEditConfirmation] = useState(false);
 
   // Original values for comparison
   const [originalTheme, setOriginalTheme] = useState('dark');
@@ -46,20 +42,17 @@ function SlugPageContent() {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
 
-  // Toast management
-  const addToast = (message: string, type: Toast['type'] = 'info') => {
-    const id = Math.random().toString(36).substring(7);
-    const toast = { id, message, type };
-    setToasts(prev => [...prev, toast]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+    const { addToast, removeToast } = useToast();
 
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
-  };
+    const handleAddToast = (message: string, type: Toast['type'] = 'info') => {
+        const newToast = addToast(message, type);
+        setToasts(prev => [...prev, newToast]);
+        };
 
-  const removeToast = (id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
+        const handleRemoveToast = (id: string) => {
+        setToasts(prev => removeToast(prev, id));
+    };
 
   const fetchSnippet = async () => {
     if (!slug) return;
@@ -100,23 +93,23 @@ function SlugPageContent() {
     }
   };
 
-  const copyToClipboard = async () => {
-    if (!snippet) return;
+    const copyToClipboard = async () => {
+        if (!snippet) return;
 
-    try {
-      const url = `${window.location.origin}/${snippet.slug}`;
-      await navigator.clipboard.writeText(url);
-      setCopyStatus('copied');
-      addToast('Link copied to clipboard!', 'success');
-      
-      setTimeout(() => {
-        setCopyStatus('idle');
-      }, 2000);
-    } catch (err) {
-      console.error('Failed to copy to clipboard:', err);
-      addToast('Failed to copy link', 'error');
-    }
-  };
+        try {
+            const url = `${window.location.origin}/${snippet.slug}`;
+            await navigator.clipboard.writeText(url);
+            setCopyStatus('copied');
+            handleAddToast('Link copied to clipboard!', 'success');
+            
+            setTimeout(() => {
+            setCopyStatus('idle');
+            }, 2000);
+        } catch (err) {
+            console.error('Failed to copy to clipboard:', err);
+            handleAddToast('Failed to copy link to clipboard', 'error'); 
+        }
+    };
 
   const handleCodeChange = (newCode: string) => {
     setEditedCode(newCode);
@@ -180,7 +173,7 @@ function SlugPageContent() {
       setSnippet(response.snippet);
       setOriginalTheme(editedTheme);
       setHasChanges(false);
-      addToast('Changes saved successfully!', 'success');
+      handleAddToast('Changes saved successfully!', 'success');
 
       setTimeout(async () => {
         await copyToClipboard();
@@ -189,7 +182,7 @@ function SlugPageContent() {
     } catch (err) {
       console.error('Error saving changes:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to save changes';
-      addToast(errorMessage, 'error');
+      handleAddToast(errorMessage, 'error');
     } finally {
       setIsSaving(false);
     }
@@ -201,7 +194,7 @@ function SlugPageContent() {
     try {
         setIsDeleting(true);
         await snippetService.deleteSnippetBySlug(snippet.slug);
-        addToast('Snippet deleted successfully', 'success');
+        handleAddToast('Snippet deleted successfully', 'success');
         
         setShowDeleteConfirmation(false);
         
@@ -212,7 +205,7 @@ function SlugPageContent() {
     } catch (err) {
         console.error('Error deleting snippet:', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to delete snippet';
-        addToast(errorMessage, 'error');
+        handleAddToast(errorMessage, 'error');
     } finally {
         setIsDeleting(false);
     }
@@ -220,10 +213,8 @@ function SlugPageContent() {
 
   const toggleEditMode = () => {
     if (isEditing && hasChanges) {
-        const confirmed = window.confirm(
-        'You have unsaved changes. Are you sure you want to exit edit mode?'
-        );
-        if (!confirmed) return;
+        setShowEditConfirmation(true);
+        return;
     }
 
     if (isEditing) {
@@ -237,6 +228,18 @@ function SlugPageContent() {
     }
 
     setIsEditing(!isEditing);
+  };
+
+  const handleExitEditMode = () => {
+    setEditedCode(snippet?.code || '');
+    setEditedTitle(snippet?.title || '');
+    setEditedLanguage(snippet?.language || 'plaintext');
+    setEditedTheme(originalTheme);
+    
+    changeTheme(originalTheme);
+    setHasChanges(false);
+    setIsEditing(false);
+    setShowEditConfirmation(false);
   };
 
   useEffect(() => {
@@ -254,21 +257,6 @@ function SlugPageContent() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasChanges]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 size={48} className="animate-spin mx-auto mb-4 text-blue-500" />
-            <h2 className="text-xl font-semibold mb-2">Loading snippet...</h2>
-            <p className="text-gray-600">Please wait while we fetch your code snippet.</p>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -294,31 +282,14 @@ function SlugPageContent() {
   // Main content
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Toast notifications */}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-300 ${
-              toast.type === 'success'
-                ? 'bg-green-500/90 text-white'
-                : toast.type === 'error'
-                ? 'bg-red-500/90 text-white'
-                : 'bg-blue-500/90 text-white'
-            }`}
-          >
-            {toast.type === 'success' && <Check size={16} />}
-            {toast.type === 'error' && <AlertCircle size={16} />}
-            <span className="text-sm font-medium">{toast.message}</span>
-            <button
-              onClick={() => removeToast(toast.id)}
-              className="ml-2 opacity-70 hover:opacity-100"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-      </div>
+        {/* Toast notifications */}
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+            <ToastContainer 
+                toasts={toasts} 
+                onRemove={handleRemoveToast}
+                position="top-right"
+            />
+        </div>
 
       <Header 
         onLanguageChange={handleLanguageChange}
@@ -517,6 +488,22 @@ function SlugPageContent() {
         type="danger"
         isLoading={isDeleting}
       />
+      {/* Exit Edit Mode Confirmation Modal */}
+        <Confirmation
+        isOpen={showEditConfirmation}
+        onClose={() => setShowEditConfirmation(false)}
+        onConfirm={handleExitEditMode}
+        title="Discard Changes?"
+        message={
+            <div>
+            <p className="mb-3">You have unsaved changes that will be lost.</p>
+            <p className="mb-4">Are you sure you want to exit edit mode without saving?</p>
+            </div>
+        }
+        confirmText="Yes, Discard Changes"
+        cancelText="Keep Editing"
+        type="warning"
+        />
     </div>
   );
 }
