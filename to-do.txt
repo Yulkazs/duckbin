@@ -1,0 +1,11 @@
+
+
+TO DO:
+
+- When editing > New slug link
+- When saved > Go auto to slug link
+- Mobile Responsive check
+- Footer: Copyright, buy coffee button + info button
+- Styling changes to main & slug page
+- 404 Custom page
+- Title auto start with Capital
