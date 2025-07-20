@@ -457,6 +457,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
   // Render import button
   const renderImportButton = () => {
+    if (readOnly) return null;
+    
     return (
       <button
         onClick={() => setShowImportModal(true)}
@@ -487,6 +489,18 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       </button>
     );
   };
+
+  useEffect(() => {
+    if (!isEditorReady || !editorRef.current) return;
+
+    try {
+      editorRef.current.updateOptions({
+        readOnly: readOnly
+      });
+    } catch (error) {
+      console.error('Failed to update readOnly option:', error);
+    }
+  }, [readOnly, isEditorReady]);
 
   // Render save button
   const renderSaveButton = () => {
@@ -617,19 +631,23 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               height: '36px'
             }}
           >
-            <input
-              type="text"
-              value={localTitle}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder="Your title"
-              maxLength={100}
-              className="text-sm px-2 py-1 rounded border-0 outline-none bg-transparent flex-1"
-              style={{ 
-                color: theme.primary,
-                backgroundColor: 'transparent',
-                fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace'
-              }}
-            />
+
+          <input
+            type="text"
+            value={localTitle}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            readOnly={readOnly}
+            placeholder={readOnly ? "" : "Your title"} 
+            maxLength={100}
+            className={`text-sm px-2 py-1 rounded border-0 outline-none bg-transparent flex-1 ${
+              readOnly ? 'cursor-default' : ''
+            }`} 
+            style={{ 
+              color: theme.primary,
+              backgroundColor: 'transparent',
+              fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace'
+            }}
+          />
             
             <div className="flex items-center">
               {/* Import button */}

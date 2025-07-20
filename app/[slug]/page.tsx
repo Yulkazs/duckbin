@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { Header } from '@/components/Header';
-import { ThemeProvider } from '@/components/ui/ThemeProvider';
+import { ThemeProvider, useThemeContext } from '@/components/ui/ThemeProvider';
+import { Confirmation } from '@/components/ui/Confirmation';
 import { snippetService, type CodeSnippetData } from '@/lib/snippets';
 import { getLanguageById, type Language } from '@/utils/languages';
 import { Loader2, AlertCircle, Edit3, Eye, Copy, Check, Trash2 } from 'lucide-react';
@@ -16,7 +17,8 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
-export default function SlugPage() {
+function SlugPageContent() {
+  const { theme, changeTheme, currentTheme } = useThemeContext();
   const params = useParams();
   const router = useRouter();
   const slug = params?.slug as string;
@@ -33,10 +35,15 @@ export default function SlugPage() {
   const [editedCode, setEditedCode] = useState('');
   const [editedTitle, setEditedTitle] = useState('');
   const [editedLanguage, setEditedLanguage] = useState('plaintext');
+  const [editedTheme, setEditedTheme] = useState('dark');
+
+  // Original values for comparison
+  const [originalTheme, setOriginalTheme] = useState('dark');
 
   // Action states
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
 
   // Toast management
@@ -70,6 +77,17 @@ export default function SlugPage() {
       setEditedCode(snippetData.code);
       setEditedTitle(snippetData.title);
       setEditedLanguage(snippetData.language);
+      
+      // Handle theme - use snippet's theme if available, otherwise keep current
+      const snippetTheme = snippetData.theme || 'dark';
+      setEditedTheme(snippetTheme);
+      setOriginalTheme(snippetTheme);
+      
+      // Force the theme to the snippet's saved theme when not editing
+      if (!isEditing) {
+        changeTheme(snippetTheme);
+      }
+      
       setHasChanges(false);
 
     } catch (err) {
@@ -111,7 +129,8 @@ export default function SlugPage() {
     setHasChanges(
       newCode !== snippet?.code ||
       editedTitle !== snippet?.title ||
-      editedLanguage !== snippet?.language
+      editedLanguage !== snippet?.language ||
+      editedTheme !== originalTheme
     );
   };
 
@@ -121,7 +140,8 @@ export default function SlugPage() {
     setHasChanges(
       editedCode !== snippet?.code ||
       newTitle !== snippet?.title ||
-      editedLanguage !== snippet?.language
+      editedLanguage !== snippet?.language ||
+      editedTheme !== originalTheme
     );
   };
 
@@ -131,7 +151,23 @@ export default function SlugPage() {
     setHasChanges(
       editedCode !== snippet?.code ||
       editedTitle !== snippet?.title ||
-      language.id !== snippet?.language
+      language.id !== snippet?.language ||
+      editedTheme !== originalTheme
+    );
+  };
+
+  // Handle theme changes
+  const handleThemeChange = (themeName: string) => {
+    setEditedTheme(themeName);
+    // Only apply theme change immediately when editing
+    if (isEditing) {
+      changeTheme(themeName);
+    }
+    setHasChanges(
+      editedCode !== snippet?.code ||
+      editedTitle !== snippet?.title ||
+      editedLanguage !== snippet?.language ||
+      themeName !== originalTheme
     );
   };
 
@@ -145,12 +181,14 @@ export default function SlugPage() {
       const updateData = {
         title: editedTitle.trim(),
         code: editedCode,
-        language: editedLanguage
+        language: editedLanguage,
+        theme: editedTheme
       };
 
       const response = await snippetService.updateSnippetBySlug(snippet.slug, updateData);
       
       setSnippet(response.snippet);
+      setOriginalTheme(editedTheme);
       setHasChanges(false);
       addToast('Changes saved successfully!', 'success');
 
@@ -171,29 +209,26 @@ export default function SlugPage() {
   // Delete snippet
   const handleDelete = async () => {
     if (!snippet) return;
-    
-    const confirmed = window.confirm(
-      'Are you sure you want to delete this snippet? This action cannot be undone.'
-    );
-    
-    if (!confirmed) return;
 
     try {
-      setIsDeleting(true);
-      await snippetService.deleteSnippetBySlug(snippet.slug);
-      addToast('Snippet deleted successfully', 'success');
-      
-      // Redirect to home after a short delay
-      setTimeout(() => {
+        setIsDeleting(true);
+        await snippetService.deleteSnippetBySlug(snippet.slug);
+        addToast('Snippet deleted successfully', 'success');
+        
+        // Close confirmation modal
+        setShowDeleteConfirmation(false);
+        
+        // Redirect to home after a short delay
+        setTimeout(() => {
         router.push('/');
-      }, 1500);
-      
+        }, 1500);
+        
     } catch (err) {
-      console.error('Error deleting snippet:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete snippet';
-      addToast(errorMessage, 'error');
+        console.error('Error deleting snippet:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to delete snippet';
+        addToast(errorMessage, 'error');
     } finally {
-      setIsDeleting(false);
+        setIsDeleting(false);
     }
   };
 
@@ -211,7 +246,14 @@ export default function SlugPage() {
       setEditedCode(snippet?.code || '');
       setEditedTitle(snippet?.title || '');
       setEditedLanguage(snippet?.language || 'plaintext');
+      setEditedTheme(originalTheme);
+      
+      // Revert theme to original when exiting edit mode
+      changeTheme(originalTheme);
       setHasChanges(false);
+    } else {
+      // When entering edit mode, allow theme changes
+      changeTheme(editedTheme);
     }
 
     setIsEditing(!isEditing);
@@ -235,192 +277,217 @@ export default function SlugPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasChanges]);
 
+  // Update theme when not editing and snippet changes
+  useEffect(() => {
+    if (!isEditing && snippet?.theme) {
+      changeTheme(snippet.theme);
+    }
+  }, [snippet?.theme, isEditing]);
+
   // Loading state
   if (loading) {
     return (
-      <ThemeProvider>
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <Loader2 size={48} className="animate-spin mx-auto mb-4 text-blue-500" />
-              <h2 className="text-xl font-semibold mb-2">Loading snippet...</h2>
-              <p className="text-gray-600">Please wait while we fetch your code snippet.</p>
-            </div>
-          </main>
-        </div>
-      </ThemeProvider>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 size={48} className="animate-spin mx-auto mb-4 text-blue-500" />
+            <h2 className="text-xl font-semibold mb-2">Loading snippet...</h2>
+            <p className="text-gray-600">Please wait while we fetch your code snippet.</p>
+          </div>
+        </main>
+      </div>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <ThemeProvider>
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-1 flex items-center justify-center">
-            <div className="text-center max-w-md">
-              <AlertCircle size={64} className="mx-auto mb-4 text-red-500" />
-              <h2 className="text-2xl font-semibold mb-4">Snippet Not Found</h2>
-              <p className="text-gray-600 mb-6">{error}</p>
-              <button
-                onClick={() => router.push('/')}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                Go to Home
-              </button>
-            </div>
-          </main>
-        </div>
-      </ThemeProvider>
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md">
+            <AlertCircle size={64} className="mx-auto mb-4 text-red-500" />
+            <h2 className="text-2xl font-semibold mb-4">Snippet Not Found</h2>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <button
+              onClick={() => router.push('/')}
+              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Go to Home
+            </button>
+          </div>
+        </main>
+      </div>
     );
   }
 
   // Main content
   return (
-    <ThemeProvider>
-      <div className="min-h-screen flex flex-col">
-        {/* Toast notifications */}
-        <div className="fixed top-4 right-4 z-50 space-y-2">
-          {toasts.map((toast) => (
-            <div
-              key={toast.id}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-300 ${
-                toast.type === 'success'
-                  ? 'bg-green-500/90 text-white'
-                  : toast.type === 'error'
-                  ? 'bg-red-500/90 text-white'
-                  : 'bg-blue-500/90 text-white'
-              }`}
+    <div className="min-h-screen flex flex-col">
+      {/* Toast notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm transition-all duration-300 ${
+              toast.type === 'success'
+                ? 'bg-green-500/90 text-white'
+                : toast.type === 'error'
+                ? 'bg-red-500/90 text-white'
+                : 'bg-blue-500/90 text-white'
+            }`}
+          >
+            {toast.type === 'success' && <Check size={16} />}
+            {toast.type === 'error' && <AlertCircle size={16} />}
+            <span className="text-sm font-medium">{toast.message}</span>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="ml-2 opacity-70 hover:opacity-100"
             >
-              {toast.type === 'success' && <Check size={16} />}
-              {toast.type === 'error' && <AlertCircle size={16} />}
-              <span className="text-sm font-medium">{toast.message}</span>
-              <button
-                onClick={() => removeToast(toast.id)}
-                className="ml-2 opacity-70 hover:opacity-100"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
 
-        <Header 
-          onLanguageChange={handleLanguageChange}
-          selectedLanguage={editedLanguage}
-        />
-        
-        <main className="flex-1 container mx-auto px-4 py-6">
-          {snippet && (
-            <>
-              {/* Action bar */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    {snippet.title}
-                  </h1>
-                  <div className="flex items-center gap-2">
-                    {isEditing ? (
-                      <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                        Editing
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full">
-                        Read-only
-                      </span>
-                    )}
-                    {hasChanges && (
-                      <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full">
-                        Unsaved changes
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
+      <Header 
+        onLanguageChange={handleLanguageChange}
+        selectedLanguage={editedLanguage}
+        onThemeChange={handleThemeChange}
+        selectedTheme={editedTheme}
+        isReadOnly={!isEditing}
+        showSnippetData={true}
+      />
+      
+      <main className="flex-1 container mx-auto px-4 py-6">
+        {snippet && (
+          <>
+            {/* Action bar */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold" style={{ color: `var(--primary, ${theme.primary})` }}>
+                  {snippet.title}
+                </h1>
                 <div className="flex items-center gap-2">
-                  {/* Copy link button */}
-                  <button
-                    onClick={copyToClipboard}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                    title="Copy link to clipboard"
-                  >
-                    {copyStatus === 'copied' ? (
-                      <>
-                        <Check size={16} className="text-green-600" />
-                        <span>Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={16} />
-                        <span>Copy Link</span>
-                      </>
-                    )}
-                  </button>
-
-                  {/* Edit/View toggle */}
-                  <button
-                    onClick={toggleEditMode}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                  >
-                    {isEditing ? (
-                      <>
-                        <Eye size={16} />
-                        <span>View</span>
-                      </>
-                    ) : (
-                      <>
-                        <Edit3 size={16} />
-                        <span>Edit</span>
-                      </>
-                    )}
-                  </button>
-
-                  {/* Save button (only show when editing and has changes) */}
-                  {isEditing && hasChanges && (
-                    <button
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white rounded-lg transition-colors disabled:cursor-not-allowed"
-                    >
-                      {isSaving ? (
-                        <>
-                          <Loader2 size={16} className="animate-spin" />
-                          <span>Saving...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Check size={16} />
-                          <span>Save</span>
-                        </>
-                      )}
-                    </button>
+                  {isEditing ? (
+                    <span className="px-2 py-1 text-xs bg-blue-200 text-blue-800 rounded-full">
+                      Editing
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded-full">
+                      Read-only
+                    </span>
                   )}
-
-                  {/* Delete button */}
-                  <button
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-lg transition-colors disabled:cursor-not-allowed"
-                    title="Delete snippet"
-                  >
-                    {isDeleting ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Trash2 size={16} />
-                    )}
-                  </button>
+                  {hasChanges && (
+                    <span className="px-2 py-1 text-xs bg-orange-200 text-orange-800 rounded-full">
+                      Unsaved changes
+                    </span>
+                  )}
                 </div>
               </div>
+              
+              <div className="flex items-center gap-2">
+                {/* Copy link button */}
+                <button
+                  onClick={copyToClipboard}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors min-w-[100px] justify-center"
+                  title="Copy link to clipboard"
+                >
+                  {copyStatus === 'copied' ? (
+                    <>
+                      <Check size={16} className="text-green-600" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={16} />
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </button>
 
-              {/* Snippet metadata */}
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
+                {/* Edit/View toggle */}
+                <button
+                  onClick={toggleEditMode}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors min-w-[100px] justify-center"
+                >
+                  {isEditing ? (
+                    <>
+                      <Eye size={16} />
+                      <span>View</span>
+                    </>
+                  ) : (
+                    <>
+                      <Edit3 size={16} />
+                      <span>Edit</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Save button (only show when editing and has changes) */}
+                {isEditing && hasChanges && (
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white rounded-lg transition-colors disabled:cursor-not-allowed min-w-[100px] justify-center"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check size={16} />
+                        <span>Save</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {/* Delete button */}
+                <button
+                  onClick={() => setShowDeleteConfirmation(true)}
+                  disabled={isDeleting}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-lg transition-colors disabled:cursor-not-allowed min-w-[100px] justify-center"
+                  title="Delete snippet"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} />
+                      <span>Delete</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Snippet metadata */}
+            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
+              <span>
+                <strong>Language:</strong> {getLanguageById(snippet.language)?.name || snippet.language}
+              </span>
+              <span>
+                <strong>Theme:</strong> {snippet.theme || 'dark'}
+              </span>
+              <span>
+                <strong>Created:</strong> {new Date(snippet.createdAt || '').toLocaleDateString('en-GB', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
+              {snippet.updatedAt && snippet.updatedAt !== snippet.createdAt && (
                 <span>
-                  <strong>Language:</strong> {getLanguageById(snippet.language)?.name || snippet.language}
-                </span>
-                <span>
-                  <strong>Created:</strong> {new Date(snippet.createdAt || '').toLocaleDateString('en-GB', {
+                  <strong>Updated:</strong> {new Date(snippet.updatedAt).toLocaleDateString('en-GB', {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric',
@@ -428,51 +495,67 @@ export default function SlugPage() {
                     minute: '2-digit'
                   })}
                 </span>
-                {snippet.updatedAt && snippet.updatedAt !== snippet.createdAt && (
-                  <span>
-                    <strong>Updated:</strong> {new Date(snippet.updatedAt).toLocaleDateString('en-GB', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                )}
-                <span>
-                  <strong>Slug:</strong> {snippet.slug}
-                </span>
-              </div>
+              )}
+              <span>
+                <strong>Link:</strong> {snippet.slug}
+              </span>
+            </div>
 
-              {/* Code editor */}
-              <div className="rounded-lg shadow-sm">
-                <CodeEditor
-                  value={isEditing ? editedCode : snippet.code}
-                  onChange={handleCodeChange}
-                  language={isEditing ? editedLanguage : snippet.language}
-                  title={isEditing ? editedTitle : snippet.title}
-                  onTitleChange={handleTitleChange}
-                  height="calc(100vh - 400px)"
-                  readOnly={!isEditing}
-                  placeholder={isEditing ? "Start typing your code..." : ""}
-                  showSaveButton={false} // Hide the save button since we have our own
-                  createdAt={new Date(snippet.createdAt || '').toLocaleDateString('en-GB')}
-                />
-              </div>
+            {/* Code editor */}
+            <div className="rounded-lg shadow-sm">
+              <CodeEditor
+                value={isEditing ? editedCode : snippet.code}
+                onChange={handleCodeChange}
+                language={isEditing ? editedLanguage : snippet.language}
+                title={isEditing ? editedTitle : snippet.title}
+                onTitleChange={isEditing ? handleTitleChange : undefined}
+                onLanguageChange={isEditing ? (lang) => setEditedLanguage(lang) : undefined}
+                height="calc(100vh - 400px)"
+                readOnly={!isEditing}
+                placeholder={isEditing ? "Start typing your code..." : ""}
+                showSaveButton={false}
+                createdAt={new Date(snippet.createdAt || '').toLocaleDateString('en-GB')}
+              />
+            </div>
 
-              {/* Footer info */}
-              <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                <p>
-                  This snippet can be shared using the URL: 
-                  <code className="ml-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-                    {typeof window !== 'undefined' ? `${window.location.origin}/${snippet.slug}` : `/${snippet.slug}`}
-                  </code>
-                </p>
-              </div>
-            </>
-          )}
-        </main>
-      </div>
+            {/* Footer info */}
+            <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+              <p>
+                This snippet can be shared using the URL: 
+                <code className="ml-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">
+                  {typeof window !== 'undefined' ? `${window.location.origin}/${snippet.slug}` : `/${snippet.slug}`}
+                </code>
+              </p>
+            </div>
+          </>
+        )}
+      </main>
+      {/* Confirmation Modal */}
+      <Confirmation
+        isOpen={showDeleteConfirmation}
+        onClose={() => setShowDeleteConfirmation(false)}
+        onConfirm={handleDelete}
+        title="Deleting Snippet"
+        message={
+          <div>
+            <p className="mb-3">Are you sure you want to delete this snippet?</p>
+            <p className="mb-4">
+              <span className="text-white font-semibold">"{snippet?.title}"</span> will be permanently deleted and cannot be recovered.
+            </p>
+          </div>
+        }
+        confirmText="Yes, Delete it"
+        type="danger"
+        isLoading={isDeleting}
+      />
+    </div>
+  );
+}
+
+export default function SlugPage() {
+  return (
+    <ThemeProvider>
+      <SlugPageContent />
     </ThemeProvider>
   );
 }

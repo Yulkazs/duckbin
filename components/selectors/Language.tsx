@@ -9,12 +9,16 @@ interface LanguageDropdownProps {
   value?: string;
   onChange?: (language: Language) => void;
   className?: string;
+  disabled?: boolean;
+  showSnippetData?: boolean;
 }
 
 export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({ 
   value = 'plaintext', 
   onChange,
-  className = "" 
+  className = "",
+  disabled = false,
+  showSnippetData = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,15 +50,23 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
   }, [isOpen]);
 
   const handleLanguageChange = (language: Language) => {
-    onChange?.(language);
-    setIsOpen(false);
-    setSearchQuery('');
+    if (!disabled) {
+      onChange?.(language);
+      setIsOpen(false);
+      setSearchQuery('');
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       setIsOpen(false);
       setSearchQuery('');
+    }
+  };
+
+  const handleDropdownToggle = () => {
+    if (!disabled) {
+      setIsOpen(!isOpen);
     }
   };
 
@@ -81,8 +93,13 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 px-3 py-2 rounded-md transition-all duration-200 hover:bg-opacity-10 w-full sm:w-auto sm:min-w-[140px]"
+        onClick={handleDropdownToggle}
+        disabled={disabled}
+        className={`flex items-center gap-1 px-3 py-2 rounded-md transition-all duration-200 w-full sm:w-auto sm:min-w-[140px] ${
+          disabled 
+            ? 'cursor-not-allowed opacity-60' 
+            : 'hover:bg-opacity-10 cursor-pointer'
+        }`}
         style={{
           color: theme.primary,
           backgroundColor: isOpen ? `${theme.primary}10` : 'transparent',
@@ -90,13 +107,15 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
         onKeyDown={handleKeyDown}
       >
         <span className="text-m font-medium">{currentLanguage.name}</span>
-        <ChevronDown 
-          size={20} 
-          className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-        />
+        {!disabled && (
+          <ChevronDown 
+            size={20} 
+            className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          />
+        )}
       </button>
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <div 
           className="absolute top-full left-0 mt-1 w-full sm:w-auto sm:min-w-[280px] max-w-xs sm:max-w-sm rounded-md border shadow-lg z-[60]"
           style={{

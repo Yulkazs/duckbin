@@ -1,3 +1,4 @@
+// components/Header.tsx
 "use client";
 
 import { useState } from 'react';
@@ -10,24 +11,43 @@ import { Github } from 'lucide-react';
 interface HeaderProps {
   onLanguageChange?: (language: Language) => void;
   selectedLanguage?: string;
+  onThemeChange?: (themeName: string) => void;
+  selectedTheme?: string;
+  isReadOnly?: boolean;
+  showSnippetData?: boolean;
   className?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onLanguageChange,
   selectedLanguage = 'plaintext',
+  onThemeChange,
+  selectedTheme,
+  isReadOnly = false,
+  showSnippetData = false,
   className = ""
 }) => {
-  const { theme } = useThemeContext();
+  const { theme, currentTheme } = useThemeContext();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLanguageChange = (language: Language) => {
-    onLanguageChange?.(language);
+    if (!isReadOnly && onLanguageChange) {
+      onLanguageChange(language);
+    }
+  };
+
+  const handleThemeChange = (themeName: string) => {
+    if (!isReadOnly && onThemeChange) {
+      onThemeChange(themeName);
+    }
   };
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
+
+  // Use selected theme if provided, otherwise use current theme
+  const displayTheme = selectedTheme || currentTheme;
 
   return (
     <header 
@@ -64,12 +84,19 @@ export const Header: React.FC<HeaderProps> = ({
               <LanguageDropdown 
                 value={selectedLanguage}
                 onChange={handleLanguageChange}
+                disabled={isReadOnly}
+                showSnippetData={showSnippetData}
               />
             </div>
 
             {/* Theme Selector */}
             <div className="flex items-center gap-2">
-              <ThemeDropdown />
+              <ThemeDropdown 
+                onThemeChange={handleThemeChange}
+                selectedTheme={displayTheme}
+                disabled={isReadOnly}
+                showSnippetData={showSnippetData}
+              />
             </div>
 
             {/* GitHub Link */}
@@ -119,6 +146,8 @@ export const Header: React.FC<HeaderProps> = ({
                 <LanguageDropdown 
                   value={selectedLanguage}
                   onChange={handleLanguageChange}
+                  disabled={isReadOnly}
+                  showSnippetData={showSnippetData}
                 />
               </div>
             </div>
@@ -126,7 +155,12 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Theme Selector */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="w-full sm:w-auto">
-                <ThemeDropdown />
+                <ThemeDropdown 
+                  onThemeChange={handleThemeChange}
+                  selectedTheme={displayTheme}
+                  disabled={isReadOnly}
+                  showSnippetData={showSnippetData}
+                />
               </div>
             </div>
           </div>
