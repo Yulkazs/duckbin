@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     siteName: "duckbin",
     images: [
       {
-        url: "https://duckbin.vercel.app/og-image.png",
+        url: "https://duckbin.vercel.app/api/og",
         width: 1200,
         height: 630,
         alt: "duckbin - Code Sharing Platform",
@@ -48,15 +48,15 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "duckbin",
     description: "Code Sharing Platform",
-    creator: "@yulkazdev",
-    images: ["https://duckbin.vercel.app/og-image.png"],
+    images: ["https://duckbin.vercel.app/api/og"],
   },
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
     shortcut: "/favicon-16x16.png",
-  }
+  },
 };
+
 
 export default function RootLayout({
   children,

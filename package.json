@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@vercel/og": "^0.7.2",
     "lucide-react": "^0.525.0",
     "monaco-editor": "^0.52.2",
     "mongoose": "^8.16.3",
