@@ -52,7 +52,6 @@ function SlugPageContent() {
     const toast = { id, message, type };
     setToasts(prev => [...prev, toast]);
 
-    // Auto-remove after 3 seconds
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
@@ -62,49 +61,45 @@ function SlugPageContent() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  // Fetch snippet data
   const fetchSnippet = async () => {
     if (!slug) return;
 
     try {
-      setLoading(true);
-      setError(null);
+        setLoading(true);
+        setError(null);
 
-      const response = await snippetService.getSnippetBySlug(slug);
-      const snippetData = response.snippet;
-      
-      setSnippet(snippetData);
-      setEditedCode(snippetData.code);
-      setEditedTitle(snippetData.title);
-      setEditedLanguage(snippetData.language);
-      
-      // Handle theme - use snippet's theme if available, otherwise keep current
-      const snippetTheme = snippetData.theme || 'dark';
-      setEditedTheme(snippetTheme);
-      setOriginalTheme(snippetTheme);
-      
-      // Force the theme to the snippet's saved theme when not editing
-      if (!isEditing) {
+        const response = await snippetService.getSnippetBySlug(slug);
+        const snippetData = response.snippet;
+        
+        setSnippet(snippetData);
+        setEditedCode(snippetData.code);
+        setEditedTitle(snippetData.title);
+        setEditedLanguage(snippetData.language);
+        
+        // Handle theme - use snippet's theme if available, otherwise use dark as default
+        const snippetTheme = snippetData.theme || 'dark';
+        setEditedTheme(snippetTheme);
+        setOriginalTheme(snippetTheme);
+        
+        // Apply the snippet's theme immediately when loading
         changeTheme(snippetTheme);
-      }
-      
-      setHasChanges(false);
+        
+        setHasChanges(false);
 
     } catch (err) {
-      console.error('Error fetching snippet:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load snippet';
-      setError(errorMessage);
-      
-      // If snippet not found, show a user-friendly message
-      if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+        console.error('Error fetching snippet:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load snippet';
+        setError(errorMessage);
+        
+        // If snippet not found, show a user-friendly message
+        if (errorMessage.includes('not found') || errorMessage.includes('404')) {
         setError('This snippet could not be found. It may have been deleted or the link is incorrect.');
-      }
+        }
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
-  // Copy snippet URL to clipboard
   const copyToClipboard = async () => {
     if (!snippet) return;
 
@@ -123,7 +118,6 @@ function SlugPageContent() {
     }
   };
 
-  // Handle code changes
   const handleCodeChange = (newCode: string) => {
     setEditedCode(newCode);
     setHasChanges(
@@ -134,7 +128,6 @@ function SlugPageContent() {
     );
   };
 
-  // Handle title changes
   const handleTitleChange = (newTitle: string) => {
     setEditedTitle(newTitle);
     setHasChanges(
@@ -145,7 +138,6 @@ function SlugPageContent() {
     );
   };
 
-  // Handle language changes
   const handleLanguageChange = (language: Language) => {
     setEditedLanguage(language.id);
     setHasChanges(
@@ -156,10 +148,9 @@ function SlugPageContent() {
     );
   };
 
-  // Handle theme changes
   const handleThemeChange = (themeName: string) => {
     setEditedTheme(themeName);
-    // Only apply theme change immediately when editing
+
     if (isEditing) {
       changeTheme(themeName);
     }
@@ -171,7 +162,6 @@ function SlugPageContent() {
     );
   };
 
-  // Save changes
   const handleSave = async () => {
     if (!snippet || !hasChanges) return;
 
@@ -192,7 +182,6 @@ function SlugPageContent() {
       setHasChanges(false);
       addToast('Changes saved successfully!', 'success');
 
-      // Copy updated link to clipboard
       setTimeout(async () => {
         await copyToClipboard();
       }, 500);
@@ -206,7 +195,6 @@ function SlugPageContent() {
     }
   };
 
-  // Delete snippet
   const handleDelete = async () => {
     if (!snippet) return;
 
@@ -215,10 +203,8 @@ function SlugPageContent() {
         await snippetService.deleteSnippetBySlug(snippet.slug);
         addToast('Snippet deleted successfully', 'success');
         
-        // Close confirmation modal
         setShowDeleteConfirmation(false);
         
-        // Redirect to home after a short delay
         setTimeout(() => {
         router.push('/');
         }, 1500);
@@ -232,39 +218,31 @@ function SlugPageContent() {
     }
   };
 
-  // Toggle edit mode
   const toggleEditMode = () => {
     if (isEditing && hasChanges) {
-      const confirmed = window.confirm(
+        const confirmed = window.confirm(
         'You have unsaved changes. Are you sure you want to exit edit mode?'
-      );
-      if (!confirmed) return;
+        );
+        if (!confirmed) return;
     }
 
     if (isEditing) {
-      // Reset to original values when exiting edit mode
-      setEditedCode(snippet?.code || '');
-      setEditedTitle(snippet?.title || '');
-      setEditedLanguage(snippet?.language || 'plaintext');
-      setEditedTheme(originalTheme);
-      
-      // Revert theme to original when exiting edit mode
-      changeTheme(originalTheme);
-      setHasChanges(false);
-    } else {
-      // When entering edit mode, allow theme changes
-      changeTheme(editedTheme);
+        setEditedCode(snippet?.code || '');
+        setEditedTitle(snippet?.title || '');
+        setEditedLanguage(snippet?.language || 'plaintext');
+        setEditedTheme(originalTheme);
+        
+        changeTheme(originalTheme);
+        setHasChanges(false);
     }
 
     setIsEditing(!isEditing);
   };
 
-  // Load snippet on mount and slug change
   useEffect(() => {
     fetchSnippet();
   }, [slug]);
 
-  // Handle browser back/forward navigation
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasChanges) {
@@ -277,14 +255,6 @@ function SlugPageContent() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasChanges]);
 
-  // Update theme when not editing and snippet changes
-  useEffect(() => {
-    if (!isEditing && snippet?.theme) {
-      changeTheme(snippet.theme);
-    }
-  }, [snippet?.theme, isEditing]);
-
-  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -300,7 +270,6 @@ function SlugPageContent() {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -425,7 +394,7 @@ function SlugPageContent() {
                   )}
                 </button>
 
-                {/* Save button (only show when editing and has changes) */}
+                {/* Save button */}
                 {isEditing && hasChanges && (
                   <button
                     onClick={handleSave}

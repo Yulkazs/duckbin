@@ -40,13 +40,12 @@ export const ThemeDropdown: React.FC<ThemeDropdownProps> = ({
 
   const handleThemeChange = (themeName: string) => {
     if (!disabled) {
+      changeTheme(themeName);
+      
       if (onThemeChange) {
-        // If onThemeChange is provided (editing mode), use it instead of changing globally
         onThemeChange(themeName);
-      } else {
-        // Default behavior - change theme globally
-        changeTheme(themeName);
       }
+      
       setIsOpen(false);
     }
   };

@@ -88,7 +88,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const displayLanguage = language.charAt(0).toUpperCase() + language.slice(1);
 
   const handleTitleChange = (newTitle: string) => {
-    // Limit title to 100 characters
     if (newTitle.length <= 100) {
       setLocalTitle(newTitle);
       if (onTitleChange) {
@@ -105,7 +104,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       visible: true
     });
 
-    // Hide toast after 3 seconds
     setTimeout(() => {
       setToast(prev => ({ ...prev, visible: false }));
     }, 3000);
@@ -118,7 +116,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         await navigator.clipboard.writeText(text);
         return true;
       } else {
-        // Fallback for older browsers
         const textArea = document.createElement('textarea');
         textArea.value = text;
         textArea.style.position = 'fixed';
@@ -141,7 +138,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const detectLanguageFromFilename = (filename: string): string => {
     const extension = filename.split('.').pop()?.toLowerCase() || '';
     
-    // Find language by extension
     const detectedLanguage = languages.find(lang => 
       lang.extension === extension || 
       (lang.id === 'typescript' && (extension === 'tsx' || extension === 'ts')) ||
@@ -158,15 +154,12 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   // Handle import from GitHub component
   const handleGitHubImport = (content: string, filename: string, detectedLanguage: string) => {
     try {
-      // Update editor content
       onChange(content);
       
-      // Update language if callback is provided
       if (onLanguageChange) {
         onLanguageChange(detectedLanguage);
       }
 
-      // Update title with filename if no title is set
       if (!localTitle.trim() || localTitle === 'Untitled Snippet') {
         handleTitleChange(filename);
       }
@@ -174,7 +167,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       setImportStatus('success');
       showToast(`File "${filename}" imported successfully!`, 'success');
 
-      // Reset success status after 2 seconds
       setTimeout(() => {
         setImportStatus('idle');
       }, 2000);
@@ -185,7 +177,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       setImportError(error instanceof Error ? error.message : 'Failed to import file');
       showToast('Failed to import file', 'error');
       
-      // Reset error status after 3 seconds
       setTimeout(() => {
         setImportStatus('idle');
         setImportError(null);
@@ -202,7 +193,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       setSaveError(null);
       setSaveStatus('idle');
 
-      // Validate data
       const snippetData = {
         title: localTitle.trim() || 'Untitled Snippet',
         code: value,
@@ -215,12 +205,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         throw new Error(validation.errors.join(', '));
       }
 
-      // Save to database
       const response = await snippetService.createSnippet(snippetData);
       
       setSaveStatus('success');
 
-      // Copy URL to clipboard
       if (response.url) {
         const copySuccess = await copyToClipboard(response.url);
         if (copySuccess) {
@@ -232,12 +220,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         showToast('Snippet saved successfully!', 'success');
       }
       
-      // Call onSave callback if provided
       if (onSave) {
         onSave(response);
       }
 
-      // Reset success status after 2 seconds
       setTimeout(() => {
         setSaveStatus('idle');
       }, 2000);
@@ -248,7 +234,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       setSaveError(error instanceof Error ? error.message : 'Failed to save snippet');
       showToast('Failed to save snippet', 'error');
       
-      // Reset error status after 3 seconds
       setTimeout(() => {
         setSaveStatus('idle');
         setSaveError(null);
@@ -258,7 +243,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   };
 
-  // Show/hide placeholder based on content
   const updatePlaceholderVisibility = () => {
     if (!placeholderRef.current) return;
     
@@ -266,7 +250,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     placeholderRef.current.style.display = shouldShowPlaceholder ? 'block' : 'none';
   };
 
-  // Load Monaco Editor dynamically
   useEffect(() => {
     const loadMonaco = async () => {
       if (typeof window === 'undefined') return;
@@ -377,7 +360,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           },
         });
 
-        // Listen for changes
         editorRef.current.onDidChangeModelContent(() => {
           if (editorRef.current) {
             const newValue = editorRef.current.getValue() || '';
@@ -458,7 +440,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   // Render import button
   const renderImportButton = () => {
     if (readOnly) return null;
-    
+
     return (
       <button
         onClick={() => setShowImportModal(true)}
@@ -541,7 +523,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     );
   };
 
-  // Render toast notification
+  // Toast notification
   const renderToast = () => {
     if (!toast.visible) return null;
 
