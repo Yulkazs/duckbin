@@ -28,7 +28,6 @@ async function connectDB(): Promise<mongoose.Connection> {
     // Configure mongoose options
     const opts = {
       bufferCommands: false,
-      dbName: 'Snippets',
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
