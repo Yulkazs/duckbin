@@ -23,7 +23,34 @@ const chivoMono = Chivo_Mono({
 
 export const metadata: Metadata = {
   title: "duckbin",
-  description: "Code sharing made easy",
+  description: "Code Sharing Platform",
+  authors: [{ name: "Yulkaz" }],
+  keywords: ["code", "sharing", "platform", "snippets", "programming"],
+  creator: "Yulkaz",
+  themeColor: "#141414",
+  openGraph: {
+    title: "duckbin",
+    description: "Code Sharing Platform",
+    url: "https://duckbin.vercel.app",
+    siteName: "duckbin",
+    images: [
+      {
+        url: "https://duckbin.vercel.app/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "duckbin - Code Sharing Platform",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "duckbin",
+    description: "Code Sharing Platform",
+    creator: "@yulkazdev",
+    images: ["https://duckbin.vercel.app/og-image.png"],
+  },
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
