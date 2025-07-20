@@ -1,23 +1,25 @@
 import { ImageResponse } from '@vercel/og';
 import { NextRequest } from 'next/server';
 
-export const runtime = 'edge'; // Vercel requirement
+export const runtime = 'edge';
 
 export async function GET(req: NextRequest) {
-  const fontKrona = await fetch(
-    new URL('../../../public/fonts/KronaOne-Regular.ttf', import.meta.url)
-  ).then(res => res.arrayBuffer());
+  const fontKronaResponse = await fetch(
+    'https://fonts.gstatic.com/s/kronaone/v13/jAnEgHdjVcKIeJnRV7YWjMfJOWsG.woff2'
+  );
+  const fontKrona = await fontKronaResponse.arrayBuffer();
 
-  const fontPoppins = await fetch(
-    new URL('../../../public/fonts/Poppins-Italic.ttf', import.meta.url)
-  ).then(res => res.arrayBuffer());
+  const fontPoppinsResponse = await fetch(
+    'https://fonts.gstatic.com/s/poppins/v20/pxiGyp8kv8JHgFVrJJLucHtA.woff2'
+  );
+  const fontPoppins = await fontPoppinsResponse.arrayBuffer();
 
   return new ImageResponse(
     (
       <div
         style={{
-          backgroundColor: '#000',
-          color: '#fff',
+          backgroundColor: '#020202',
+          color: '#FFFFFF',
           width: '100%',
           height: '100%',
           display: 'flex',
@@ -68,11 +70,13 @@ export async function GET(req: NextRequest) {
           name: 'Krona One',
           data: fontKrona,
           style: 'normal',
+          weight: 400,
         },
         {
           name: 'Poppins',
           data: fontPoppins,
           style: 'italic',
+          weight: 400,
         },
       ],
     }
