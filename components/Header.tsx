@@ -74,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* GitHub Link */}
             <a 
-              href="https://github.com/username/duckbin"
+              href="https://github.com/Yulkazs/duckbin"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-sm font-medium"

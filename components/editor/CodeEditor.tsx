@@ -5,7 +5,7 @@ import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { getSyntaxColors, createMonacoTheme } from '@/utils/syntax-colors';
 import { snippetService } from '@/lib/snippets';
 import { getLanguageById, languages } from '@/utils/languages';
-import { Save, Loader2, Check, X, Download } from 'lucide-react';
+import { Save, Loader2, Check, X, Download, Copy } from 'lucide-react';
 import { ImportGithub } from '@/components/selectors/ImportGithub';
 
 // Monaco Editor types
@@ -71,6 +71,17 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importError, setImportError] = useState<string | null>(null);
 
+  // Toast notification states
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info';
+    visible: boolean;
+  }>({
+    message: '',
+    type: 'success',
+    visible: false
+  });
+
   // Calculate stats
   const characterCount = value.length;
   const lineCount = value.split('\n').length;
@@ -83,6 +94,46 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       if (onTitleChange) {
         onTitleChange(newTitle);
       }
+    }
+  };
+
+  // Show toast notification
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({
+      message,
+      type,
+      visible: true
+    });
+
+    // Hide toast after 3 seconds
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, visible: false }));
+    }, 3000);
+  };
+
+  // Copy to clipboard function
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        const success = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        return success;
+      }
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      return false;
     }
   };
 
@@ -121,6 +172,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       }
 
       setImportStatus('success');
+      showToast(`File "${filename}" imported successfully!`, 'success');
 
       // Reset success status after 2 seconds
       setTimeout(() => {
@@ -131,6 +183,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       console.error('Error handling GitHub import:', error);
       setImportStatus('error');
       setImportError(error instanceof Error ? error.message : 'Failed to import file');
+      showToast('Failed to import file', 'error');
       
       // Reset error status after 3 seconds
       setTimeout(() => {
@@ -166,6 +219,18 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       const response = await snippetService.createSnippet(snippetData);
       
       setSaveStatus('success');
+
+      // Copy URL to clipboard
+      if (response.url) {
+        const copySuccess = await copyToClipboard(response.url);
+        if (copySuccess) {
+          showToast(`Snippet saved! URL copied to clipboard: ${response.snippet.slug}`, 'success');
+        } else {
+          showToast(`Snippet saved! URL: ${response.url}`, 'info');
+        }
+      } else {
+        showToast('Snippet saved successfully!', 'success');
+      }
       
       // Call onSave callback if provided
       if (onSave) {
@@ -181,6 +246,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       console.error('Error saving snippet:', error);
       setSaveStatus('error');
       setSaveError(error instanceof Error ? error.message : 'Failed to save snippet');
+      showToast('Failed to save snippet', 'error');
       
       // Reset error status after 3 seconds
       setTimeout(() => {
@@ -461,6 +527,31 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     );
   };
 
+  // Render toast notification
+  const renderToast = () => {
+    if (!toast.visible) return null;
+
+    const toastColors = {
+      success: { bg: '#10b981', icon: <Check size={16} /> },
+      error: { bg: '#ef4444', icon: <X size={16} /> },
+      info: { bg: theme.primary, icon: <Copy size={16} /> }
+    };
+
+    const colors = toastColors[toast.type];
+
+    return (
+      <div
+        className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all duration-300 ${
+          toast.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
+        }`}
+        style={{ backgroundColor: colors.bg }}
+      >
+        {colors.icon}
+        <span>{toast.message}</span>
+      </div>
+    );
+  };
+
   if (loadError) {
     return (
       <div className={`space-y-2 ${className}`}>
@@ -614,6 +705,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         onClose={() => setShowImportModal(false)}
         isVisible={showImportModal}
       />
+
+      {/* Toast Notification */}
+      {renderToast()}
     </>
   );
 };
