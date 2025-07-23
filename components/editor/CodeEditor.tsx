@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { getSyntaxColors, createMonacoTheme } from '@/utils/syntax-colors';
 import { snippetService } from '@/lib/snippets';
 import { getLanguageById, languages } from '@/utils/languages';
-import { Save, Loader2, Check, X, Download, Copy, AlertCircle } from 'lucide-react';
+import { Save, Loader2, Check, X, Download, Copy, AlertCircle, GitBranch } from 'lucide-react';
 import { ImportGithub } from '@/components/selectors/ImportGithub';
 import { SimpleToast } from '@/components/ui/Toast';
-import { Loading } from '@/components/ui/Loading'; // Add this import
+import { Loading } from '@/components/ui/Loading';
 
 // Monaco Editor types
 interface MonacoEditor {
@@ -34,6 +35,15 @@ interface CodeEditorProps {
   onSave?: (savedSnippet: any) => void;
   showSaveButton?: boolean;
   onLanguageChange?: (language: string) => void;
+  // New props for fork behavior
+  existingSlug?: string;
+  isEditing?: boolean;
+  originalSnippet?: any;
+  // Current state from parent (for editing existing snippets)
+  currentTitle?: string;
+  currentCode?: string;
+  currentLanguage?: string;
+  currentTheme?: string;
 }
 
 export const CodeEditor: React.FC<CodeEditorProps> = ({
@@ -49,12 +59,21 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   createdAt = new Date().toLocaleDateString('en-GB'),
   onSave,
   showSaveButton = true,
-  onLanguageChange
+  onLanguageChange,
+  existingSlug,
+  isEditing = false,
+  originalSnippet,
+  currentTitle,
+  currentCode,
+  currentLanguage,
+  currentTheme
 }) => {
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const placeholderRef = useRef<HTMLDivElement>(null);
   const { theme, currentTheme } = useThemeContext();
+  const router = useRouter();
+  
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [monacoLoaded, setMonacoLoaded] = useState(false);
   const [monaco, setMonaco] = useState<MonacoEditor | null>(null);
@@ -72,6 +91,15 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importError, setImportError] = useState<string | null>(null);
 
+  // Track if content has been modified - FIXED TYPE ERROR
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+  const [initialContent, setInitialContent] = useState({
+    title: title,
+    code: value,
+    language: language,
+    theme: currentTheme
+  });
+
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error' | 'info' | 'warning';
@@ -86,6 +114,23 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const characterCount = value.length;
   const lineCount = value.split('\n').length;
   const displayLanguage = language.charAt(0).toUpperCase() + language.slice(1);
+
+  // Check if content has been modified from original - FIXED TYPE ERROR
+  useEffect(() => {
+    if (isEditing && originalSnippet) {
+      const contentChanged = 
+        localTitle.trim() !== originalSnippet.title ||
+        value !== originalSnippet.code ||
+        language !== originalSnippet.language ||
+        currentTheme !== originalSnippet.theme;
+      
+      setHasUnsavedChanges(contentChanged); // Now explicitly boolean
+    } else {
+      // For new snippets, check if any content exists
+      const hasContent = Boolean(localTitle.trim() || value.trim());
+      setHasUnsavedChanges(hasContent); // Now explicitly boolean
+    }
+  }, [localTitle, value, language, currentTheme, isEditing, originalSnippet]);
 
   useEffect(() => {
     const checkIsMobile = () => {
@@ -196,7 +241,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   };
 
-  // Save snippet function
+  // Save snippet function with automatic navigation
   const handleSave = async () => {
     if (isSaving) return;
 
@@ -205,11 +250,12 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       setSaveError(null);
       setSaveStatus('idle');
 
+      // Use current values from parent component when editing existing snippets
       const snippetData = {
-        title: localTitle.trim() || 'Untitled Snippet',
-        code: value,
-        language: language,
-        theme: currentTheme
+        title: (isEditing && currentTitle ? currentTitle : localTitle).trim() || 'Untitled Snippet',
+        code: isEditing && currentCode !== undefined ? currentCode : value,
+        language: isEditing && currentLanguage ? currentLanguage : language,
+        theme: isEditing && currentTheme ? currentTheme : currentTheme
       };
 
       const validation = snippetService.validateSnippetData(snippetData);
@@ -217,24 +263,53 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         throw new Error(validation.errors.join(', '));
       }
 
-      const response = await snippetService.createSnippet(snippetData);
+      let response;
+      let actionMessage = '';
+
+      if (isEditing && existingSlug && hasUnsavedChanges) {
+        // Fork the existing snippet (create new one)
+        response = await snippetService.forkSnippet(existingSlug, snippetData);
+        actionMessage = 'Forked and saved';
+      } else {
+        // Create new snippet
+        response = await snippetService.createSnippet(snippetData);
+        actionMessage = 'Saved';
+      }
       
       setSaveStatus('success');
-
+      
+      // Copy URL to clipboard
       if (response.url) {
         const copySuccess = await copyToClipboard(response.url);
         if (copySuccess) {
-          showToast(`Snippet saved! URL copied to clipboard: ${response.snippet.slug}`, 'success');
+          showToast(`${actionMessage}! URL copied to clipboard`, 'success');
         } else {
-          showToast(`Snippet saved! URL: ${response.url}`, 'info');
+          showToast(`${actionMessage}! URL: ${response.url}`, 'info');
         }
-      } else {
-        showToast('Snippet saved successfully!', 'success');
       }
       
+      // Call the parent's onSave callback with the response
       if (onSave) {
         onSave(response);
       }
+
+      // For new snippets (not editing), navigate directly
+      if (!isEditing) {
+        setTimeout(() => {
+          if (response.snippet?.slug) {
+            router.push(`/${response.snippet.slug}`);
+          }
+        }, 1000);
+      }
+
+      // Reset the unsaved changes state
+      setHasUnsavedChanges(false);
+      setInitialContent({
+        title: snippetData.title,
+        code: snippetData.code,
+        language: snippetData.language,
+        theme: snippetData.theme
+      });
 
       setTimeout(() => {
         setSaveStatus('idle');
@@ -538,14 +613,38 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   }, [readOnly, isEditorReady]);
 
-  // Render save button
+  // Render save button with fork indication
   const renderSaveButton = () => {
     if (!showSaveButton) return null;
+
+    const getSaveButtonText = () => {
+      if (isSaving) return !isMobile ? 'Saving...' : '';
+      if (saveStatus === 'success') return !isMobile ? 'Saved!' : '';
+      if (saveStatus === 'error') return !isMobile ? 'Error' : '';
+      
+      if (isEditing && hasUnsavedChanges) {
+        return !isMobile ? 'Fork & Save' : '';
+      }
+      return !isMobile ? 'Save' : '';
+    };
+
+    const getSaveIcon = () => {
+      if (isSaving) return <Loader2 size={isMobile ? 12 : 14} className="animate-spin" />;
+      if (saveStatus === 'success') return <Check size={isMobile ? 12 : 14} />;
+      if (saveStatus === 'error') return <X size={isMobile ? 12 : 14} />;
+      
+      if (isEditing && hasUnsavedChanges) {
+        return <GitBranch size={isMobile ? 12 : 14} />;
+      }
+      return <Save size={isMobile ? 12 : 14} />;
+    };
+
+    const isDisabled = isSaving || !value.trim();
 
     return (
       <button
         onClick={handleSave}
-        disabled={isSaving || !value.trim()}
+        disabled={isDisabled}
         className={`flex items-center gap-2 rounded text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
           isMobile ? 'px-2 py-1 ml-1' : 'px-3 py-1'
         }`}
@@ -553,28 +652,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           backgroundColor: saveStatus === 'success' ? '#10b981' : saveStatus === 'error' ? '#ef4444' : theme.primary,
           color: theme.background,
         }}
+        title={isEditing && hasUnsavedChanges ? 'This will create a new snippet (fork)' : 'Save snippet'}
       >
-        {isSaving ? (
-          <>
-            <Loader2 size={isMobile ? 12 : 14} className="animate-spin" />
-            {!isMobile && <span>Saving...</span>}
-          </>
-        ) : saveStatus === 'success' ? (
-          <>
-            <Check size={isMobile ? 12 : 14} />
-            {!isMobile && <span>Saved!</span>}
-          </>
-        ) : saveStatus === 'error' ? (
-          <>
-            <X size={isMobile ? 12 : 14} />
-            {!isMobile && <span>Error</span>}
-          </>
-        ) : (
-          <>
-            <Save size={isMobile ? 12 : 14} />
-            {!isMobile && <span>Save</span>}
-          </>
-        )}
+        {getSaveIcon()}
+        {getSaveButtonText() && <span>{getSaveButtonText()}</span>}
       </button>
     );
   };
@@ -673,24 +754,24 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             }}
           >
 
-          <input
-            type="text"
-            value={localTitle}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            readOnly={readOnly}
-            placeholder={readOnly ? "" : "Your title"} 
-            maxLength={100}
-            className={`outline-none bg-transparent flex-1 border-0 ${
-              readOnly ? 'cursor-default' : ''
-            } ${
-              isMobile ? 'text-xs px-1 py-1' : 'text-sm px-2 py-1'
-            }`} 
-            style={{ 
-              color: theme.primary,
-              backgroundColor: 'transparent',
-              fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace'
-            }}
-          />
+            <input
+              type="text"
+              value={localTitle}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              readOnly={readOnly}
+              placeholder={readOnly ? "" : "Your title"} 
+              maxLength={100}
+              className={`outline-none bg-transparent flex-1 border-0 ${
+                readOnly ? 'cursor-default' : ''
+              } ${
+                isMobile ? 'text-xs px-1 py-1' : 'text-sm px-2 py-1'
+              }`} 
+              style={{ 
+                color: theme.primary,
+                backgroundColor: 'transparent',
+                fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace'
+              }}
+            />
             
             <div className={`flex items-center ${isMobile ? 'gap-1' : ''}`}>
               {/* Import button */}
@@ -746,6 +827,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               {isMobile && (
                 <div className="flex items-center gap-2 text-xs">
                   <span>{displayLanguage}</span>
+                  {isEditing && hasUnsavedChanges && (
+                    <span className="text-orange-500" title="Unsaved changes - will create new snippet">
+                      ●
+                    </span>
+                  )}
                 </div>
               )}
               {saveError && (
@@ -761,6 +847,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             </div>
             <div className={`flex items-center gap-4 ${isMobile ? 'w-full justify-between text-xs' : ''}`}>
               {!isMobile && <span>{displayLanguage}</span>}
+              {!isMobile && isEditing && hasUnsavedChanges && (
+                <span className="text-orange-500" title="Unsaved changes - will create new snippet">
+                  Modified ●
+                </span>
+              )}
               <span className={isMobile ? 'text-xs' : ''}>{characterCount} characters</span>
               <span className={isMobile ? 'text-xs' : ''}>{lineCount} lines</span>
             </div>

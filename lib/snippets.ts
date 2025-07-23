@@ -62,7 +62,7 @@ class CodeSnippetService {
     return data;
   }
 
-  // Create a new snippet
+  // Create a new snippet (also used for forking)
   async createSnippet(data: CreateSnippetRequest): Promise<SnippetResponse> {
     console.log('Creating snippet with data:', {
       title: data.title.substring(0, 50) + (data.title.length > 50 ? '...' : ''),
@@ -80,11 +80,31 @@ class CodeSnippetService {
         body: JSON.stringify(data),
       });
 
-      return await this.handleResponse<SnippetResponse>(response);
+      const result = await this.handleResponse<SnippetResponse>(response);
+      
+      // Ensure URL is properly formatted
+      if (result.snippet && !result.url) {
+        result.url = this.getSnippetUrl(result.snippet.slug);
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error creating snippet:', error);
       throw error;
     }
+  }
+
+  // Fork an existing snippet (create new one based on existing)
+  async forkSnippet(originalSlug: string, data: CreateSnippetRequest): Promise<SnippetResponse> {
+    console.log('Forking snippet from:', originalSlug);
+    
+    // Add a note to the title if it doesn't already indicate it's a fork
+    const forkTitle = data.title.includes('(fork)') ? data.title : `${data.title} (fork)`;
+    
+    return this.createSnippet({
+      ...data,
+      title: forkTitle
+    });
   }
 
   // Get snippet by slug
@@ -97,14 +117,21 @@ class CodeSnippetService {
 
     try {
       const response = await fetch(`${this.baseUrl}/${slug}`);
-      return await this.handleResponse<SnippetResponse>(response);
+      const result = await this.handleResponse<SnippetResponse>(response);
+      
+      // Ensure URL is properly formatted
+      if (result.snippet && !result.url) {
+        result.url = this.getSnippetUrl(result.snippet.slug);
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error fetching snippet by slug:', error);
       throw error;
     }
   }
 
-  // Update snippet by slug
+  // Update snippet by slug (this should rarely be used, prefer forking)
   async updateSnippetBySlug(slug: string, data: UpdateSnippetRequest): Promise<SnippetResponse> {
     if (!this.isValidSlug(slug)) {
       throw new Error('Invalid slug format. Slug must be exactly 7 alphanumeric characters.');
@@ -121,7 +148,14 @@ class CodeSnippetService {
         body: JSON.stringify(data),
       });
 
-      return await this.handleResponse<SnippetResponse>(response);
+      const result = await this.handleResponse<SnippetResponse>(response);
+      
+      // Ensure URL is properly formatted
+      if (result.snippet && !result.url) {
+        result.url = this.getSnippetUrl(result.snippet.slug);
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error updating snippet by slug:', error);
       throw error;
@@ -176,7 +210,14 @@ class CodeSnippetService {
 
     try {
       const response = await fetch(`${this.baseUrl}?id=${encodeURIComponent(id)}`);
-      return await this.handleResponse<SnippetResponse>(response);
+      const result = await this.handleResponse<SnippetResponse>(response);
+      
+      // Ensure URL is properly formatted
+      if (result.snippet && !result.url) {
+        result.url = this.getSnippetUrl(result.snippet.slug);
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error fetching snippet by ID:', error);
       throw error;
@@ -196,7 +237,14 @@ class CodeSnippetService {
         body: JSON.stringify(data),
       });
 
-      return await this.handleResponse<SnippetResponse>(response);
+      const result = await this.handleResponse<SnippetResponse>(response);
+      
+      // Ensure URL is properly formatted
+      if (result.snippet && !result.url) {
+        result.url = this.getSnippetUrl(result.snippet.slug);
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error updating snippet by ID:', error);
       throw error;
@@ -229,6 +277,16 @@ class CodeSnippetService {
 
   isValidSlug(slug: string): boolean {
     return /^[a-zA-Z0-9]{7}$/.test(slug);
+  }
+
+  // Check if two snippets are different (for fork detection)
+  hasSnippetChanged(original: CodeSnippetData, current: Partial<CodeSnippetData>): boolean {
+    return (
+      (current.title !== undefined && current.title.trim() !== original.title) ||
+      (current.code !== undefined && current.code !== original.code) ||
+      (current.language !== undefined && current.language !== original.language) ||
+      (current.theme !== undefined && current.theme !== original.theme)
+    );
   }
 
   // Utility method to validate snippet data before sending
@@ -269,7 +327,36 @@ class CodeSnippetService {
       return 'Server returned invalid response. Please try again.';
     }
     
+    if (error.message.includes('not found')) {
+      return 'Snippet not found. It may have been deleted or the URL is incorrect.';
+    }
+    
     return error.message || 'An unexpected error occurred';
+  }
+
+  // Helper method to generate a preview of code content
+  getCodePreview(code: string, maxLength: number = 100): string {
+    if (code.length <= maxLength) {
+      return code;
+    }
+    
+    return code.substring(0, maxLength) + '...';
+  }
+
+  // Helper method to extract first line as potential title
+  extractTitleFromCode(code: string): string {
+    const firstLine = code.split('\n')[0].trim();
+    
+    // Remove common comment prefixes
+    const cleanedLine = firstLine
+      .replace(/^(\/\/|#|\/\*|\*|<!--|\-\-)/g, '')
+      .trim();
+    
+    if (cleanedLine.length > 0 && cleanedLine.length <= 50) {
+      return cleanedLine.charAt(0).toUpperCase() + cleanedLine.slice(1);
+    }
+    
+    return 'Untitled Snippet';
   }
 }
 

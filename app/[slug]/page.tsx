@@ -9,7 +9,7 @@ import { ThemeProvider, useThemeContext } from '@/components/ui/ThemeProvider';
 import { Confirmation } from '@/components/ui/Confirmation';
 import { snippetService, type CodeSnippetData } from '@/lib/snippets';
 import { getLanguageById, type Language } from '@/utils/languages';
-import { Loader2, AlertCircle, Edit3, Eye, Copy, Check, Trash2 } from 'lucide-react';
+import { Loader2, AlertCircle, Edit3, Eye, Copy, Check, Trash2, GitBranch } from 'lucide-react';
 import { ToastContainer, useToast, type Toast } from '@/components/ui/Toast';
 import Loading from '@/components/ui/Loading';
 
@@ -43,70 +43,70 @@ function SlugPageContent() {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
 
   const [toasts, setToasts] = useState<Toast[]>([]);
-    const { addToast, removeToast } = useToast();
+  const { addToast, removeToast } = useToast();
 
-    const handleAddToast = (message: string, type: Toast['type'] = 'info') => {
-        const newToast = addToast(message, type);
-        setToasts(prev => [...prev, newToast]);
-        };
+  const handleAddToast = (message: string, type: Toast['type'] = 'info') => {
+    const newToast = addToast(message, type);
+    setToasts(prev => [...prev, newToast]);
+  };
 
-        const handleRemoveToast = (id: string) => {
-        setToasts(prev => removeToast(prev, id));
-    };
+  const handleRemoveToast = (id: string) => {
+    setToasts(prev => removeToast(prev, id));
+  };
 
   const fetchSnippet = async () => {
     if (!slug) return;
 
     try {
-        setLoading(true);
-        setError(null);
+      setLoading(true);
+      setError(null);
 
-        const response = await snippetService.getSnippetBySlug(slug);
-        const snippetData = response.snippet;
-        
-        setSnippet(snippetData);
-        setEditedCode(snippetData.code);
-        setEditedTitle(snippetData.title);
-        setEditedLanguage(snippetData.language);
-        
-        const snippetTheme = snippetData.theme || 'dark';
-        setEditedTheme(snippetTheme);
-        setOriginalTheme(snippetTheme);
-        
-        changeTheme(snippetTheme);
-        
-        setHasChanges(false);
+      const response = await snippetService.getSnippetBySlug(slug);
+      const snippetData = response.snippet;
+      
+      setSnippet(snippetData);
+      setEditedCode(snippetData.code);
+      setEditedTitle(snippetData.title);
+      setEditedLanguage(snippetData.language);
+      
+      const snippetTheme = snippetData.theme || 'dark';
+      setEditedTheme(snippetTheme);
+      setOriginalTheme(snippetTheme);
+      
+      changeTheme(snippetTheme);
+      
+      setHasChanges(false);
 
     } catch (err) {
-        console.error('Error fetching snippet:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load snippet';
-        setError(errorMessage);
-        
-        if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+      console.error('Error fetching snippet:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load snippet';
+      setError(errorMessage);
+      
+      if (errorMessage.includes('not found') || errorMessage.includes('404')) {
         setError('This snippet could not be found. It may have been deleted or the link is incorrect.');
-        }
+      }
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
-    const copyToClipboard = async () => {
-        if (!snippet) return;
+  const copyToClipboard = async () => {
+    if (!snippet) return;
 
-        try {
-            const url = `${window.location.origin}/${snippet.slug}`;
-            await navigator.clipboard.writeText(url);
-            setCopyStatus('copied');
-            handleAddToast('Link copied to clipboard!', 'success');
-            
-            setTimeout(() => {
-            setCopyStatus('idle');
-            }, 2000);
-        } catch (err) {
-            console.error('Failed to copy to clipboard:', err);
-            handleAddToast('Failed to copy link to clipboard', 'error'); 
-        }
-    };
+    try {
+      const url = `${window.location.origin}/${snippet.slug}`;
+      await navigator.clipboard.writeText(url);
+      setCopyStatus('copied');
+      handleAddToast('Link copied to clipboard!', 'success');
+      
+      setTimeout(() => {
+        setCopyStatus('idle');
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+      handleAddToast('Failed to copy link to clipboard', 'error'); 
+    }
+  };
 
   const handleCodeChange = (newCode: string) => {
     setEditedCode(newCode);
@@ -152,36 +152,17 @@ function SlugPageContent() {
     );
   };
 
-  const handleSave = async () => {
-    if (!snippet || !hasChanges) return;
-
-    try {
-      setIsSaving(true);
+  // Handle save callback from CodeEditor (just for navigation and UI updates)
+  const handleSave = async (savedSnippet: any) => {
+    // The CodeEditor already handles the actual saving/forking
+    // This is just for post-save actions like navigation and toasts
+    if (savedSnippet?.snippet?.slug) {
+      handleAddToast('Snippet forked and saved successfully!', 'success');
       
-      const updateData = {
-        title: editedTitle.trim(),
-        code: editedCode,
-        language: editedLanguage,
-        theme: editedTheme
-      };
-
-      const response = await snippetService.updateSnippetBySlug(snippet.slug, updateData);
-      
-      setSnippet(response.snippet);
-      setOriginalTheme(editedTheme);
-      setHasChanges(false);
-      handleAddToast('Changes saved successfully!', 'success');
-
-      setTimeout(async () => {
-        await copyToClipboard();
-      }, 500);
-
-    } catch (err) {
-      console.error('Error saving changes:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save changes';
-      handleAddToast(errorMessage, 'error');
-    } finally {
-      setIsSaving(false);
+      // Navigate to the new snippet page
+      setTimeout(() => {
+        router.push(`/${savedSnippet.snippet.slug}`);
+      }, 1000);
     }
   };
 
@@ -189,39 +170,39 @@ function SlugPageContent() {
     if (!snippet) return;
 
     try {
-        setIsDeleting(true);
-        await snippetService.deleteSnippetBySlug(snippet.slug);
-        handleAddToast('Snippet deleted successfully', 'success');
-        
-        setShowDeleteConfirmation(false);
-        
-        setTimeout(() => {
+      setIsDeleting(true);
+      await snippetService.deleteSnippetBySlug(snippet.slug);
+      handleAddToast('Snippet deleted successfully', 'success');
+      
+      setShowDeleteConfirmation(false);
+      
+      setTimeout(() => {
         router.push('/');
-        }, 1500);
-        
+      }, 1500);
+      
     } catch (err) {
-        console.error('Error deleting snippet:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to delete snippet';
-        handleAddToast(errorMessage, 'error');
+      console.error('Error deleting snippet:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete snippet';
+      handleAddToast(errorMessage, 'error');
     } finally {
-        setIsDeleting(false);
+      setIsDeleting(false);
     }
   };
 
   const toggleEditMode = () => {
     if (isEditing && hasChanges) {
-        setShowEditConfirmation(true);
-        return;
+      setShowEditConfirmation(true);
+      return;
     }
 
     if (isEditing) {
-        setEditedCode(snippet?.code || '');
-        setEditedTitle(snippet?.title || '');
-        setEditedLanguage(snippet?.language || 'plaintext');
-        setEditedTheme(originalTheme);
-        
-        changeTheme(originalTheme);
-        setHasChanges(false);
+      setEditedCode(snippet?.code || '');
+      setEditedTitle(snippet?.title || '');
+      setEditedLanguage(snippet?.language || 'plaintext');
+      setEditedTheme(originalTheme);
+      
+      changeTheme(originalTheme);
+      setHasChanges(false);
     }
 
     setIsEditing(!isEditing);
@@ -276,17 +257,17 @@ function SlugPageContent() {
     );
   }
 
- // Main content
+  // Main content
   return (
     <div className="min-h-screen" style={{ backgroundColor: theme.background, color: theme.primary }}>
-        {/* Toast notifications */}
-        <div className="fixed top-4 right-4 z-50 space-y-2">
-            <ToastContainer 
-                toasts={toasts} 
-                onRemove={handleRemoveToast}
-                position="top-right"
-            />
-        </div>
+      {/* Toast notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        <ToastContainer 
+          toasts={toasts} 
+          onRemove={handleRemoveToast}
+          position="top-right"
+        />
+      </div>
 
       <Header 
         onLanguageChange={handleLanguageChange}
@@ -308,8 +289,9 @@ function SlugPageContent() {
                 </h1>
                 <div className="flex items-center gap-2">
                   {isEditing ? (
-                    <span className="px-2 py-1 text-xs bg-blue-200 text-blue-800 rounded-full">
-                      Editing
+                    <span className="px-2 py-1 text-xs bg-blue-200 text-blue-800 rounded-full flex items-center gap-1">
+                      <GitBranch size={12} />
+                      Forking Mode
                     </span>
                   ) : (
                     <span className="px-2 py-1 text-xs bg-gray-200 text-gray-800 rounded-full">
@@ -318,7 +300,7 @@ function SlugPageContent() {
                   )}
                   {hasChanges && (
                     <span className="px-2 py-1 text-xs bg-orange-200 text-orange-800 rounded-full">
-                      Unsaved changes
+                      Will create new snippet
                     </span>
                   )}
                 </div>
@@ -357,31 +339,10 @@ function SlugPageContent() {
                   ) : (
                     <>
                       <Edit3 size={16} />
-                      <span>Edit</span>
+                      <span>Fork & Edit</span>
                     </>
                   )}
                 </button>
-
-                {/* Save button */}
-                {isEditing && hasChanges && (
-                  <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-green-500 hover:bg-green-600 disabled:bg-green-400 text-white rounded-lg transition-colors disabled:cursor-not-allowed min-w-[100px] justify-center"
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check size={16} />
-                        <span>Save</span>
-                      </>
-                    )}
-                  </button>
-                )}
 
                 {/* Delete button */}
                 <button
@@ -404,6 +365,19 @@ function SlugPageContent() {
                 </button>
               </div>
             </div>
+
+            {/* Fork notice */}
+            {isEditing && (
+              <div className="mx-4 mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-center gap-2 text-sm text-blue-800 dark:text-blue-200">
+                  <GitBranch size={16} />
+                  <span>
+                    <strong>Fork Mode:</strong> Any changes will create a new snippet with a new URL. 
+                    The original snippet will remain unchanged.
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Snippet metadata */}
             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4 px-4">
@@ -445,13 +419,21 @@ function SlugPageContent() {
               language={isEditing ? editedLanguage : snippet.language}
               title={isEditing ? editedTitle : snippet.title}
               onTitleChange={isEditing ? handleTitleChange : undefined}
-              onLanguageChange={isEditing ? (lang) => setEditedLanguage(lang) : undefined}
+              onLanguageChange={isEditing ? (lang: string) => setEditedLanguage(lang) : undefined}
               height="600px"
               readOnly={!isEditing}
               placeholder={isEditing ? "Start typing your code..." : ""}
-              showSaveButton={false}
+              showSaveButton={isEditing}
+              onSave={handleSave}
               createdAt={new Date(snippet.createdAt || '').toLocaleDateString('en-GB')}
               className="w-full"
+              existingSlug={snippet.slug}
+              isEditing={isEditing}
+              originalSnippet={snippet}
+              currentTitle={editedTitle}
+              currentCode={editedCode}
+              currentLanguage={editedLanguage}
+              currentTheme={editedTheme}
             />
 
             {/* Footer info */}
@@ -462,6 +444,12 @@ function SlugPageContent() {
                   {typeof window !== 'undefined' ? `${window.location.origin}/${snippet.slug}` : `/${snippet.slug}`}
                 </code>
               </p>
+              {isEditing && (
+                <p className="mt-2 text-blue-600 dark:text-blue-400">
+                  <GitBranch size={14} className="inline mr-1" />
+                  Saving will create a new snippet with a new URL
+                </p>
+              )}
             </div>
           </>
         )}
@@ -492,10 +480,10 @@ function SlugPageContent() {
         onConfirm={handleExitEditMode}
         title="Discard Changes?"
         message={
-            <div>
+          <div>
             <p className="mb-3">You have unsaved changes that will be lost.</p>
             <p className="mb-4">Are you sure you want to exit edit mode?</p>
-            </div>
+          </div>
         }
         confirmText="Discard"
         cancelText="Keep Editing"
