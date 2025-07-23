@@ -9,7 +9,7 @@ import { ThemeProvider, useThemeContext } from '@/components/ui/ThemeProvider';
 import { Confirmation } from '@/components/ui/Confirmation';
 import { snippetService, type CodeSnippetData } from '@/lib/snippets';
 import { getLanguageById, type Language } from '@/utils/languages';
-import { Loader2, AlertCircle, Edit3, Eye, Copy, Check, Trash2, GitBranch } from 'lucide-react';
+import { Loader2, AlertCircle, Edit3, Eye, Copy, Check, GitBranch } from 'lucide-react';
 import { ToastContainer, useToast, type Toast } from '@/components/ui/Toast';
 import Loading from '@/components/ui/Loading';
 
@@ -38,8 +38,6 @@ function SlugPageContent() {
 
   // Action states
   const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
 
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -163,29 +161,6 @@ function SlugPageContent() {
       setTimeout(() => {
         router.push(`/${savedSnippet.snippet.slug}`);
       }, 1000);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!snippet) return;
-
-    try {
-      setIsDeleting(true);
-      await snippetService.deleteSnippetBySlug(snippet.slug);
-      handleAddToast('Snippet deleted successfully', 'success');
-      
-      setShowDeleteConfirmation(false);
-      
-      setTimeout(() => {
-        router.push('/');
-      }, 1500);
-      
-    } catch (err) {
-      console.error('Error deleting snippet:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete snippet';
-      handleAddToast(errorMessage, 'error');
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -343,26 +318,6 @@ function SlugPageContent() {
                     </>
                   )}
                 </button>
-
-                {/* Delete button */}
-                <button
-                  onClick={() => setShowDeleteConfirmation(true)}
-                  disabled={isDeleting}
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-lg transition-colors disabled:cursor-not-allowed min-w-[100px] justify-center"
-                  title="Delete snippet"
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>Deleting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 size={16} />
-                      <span>Delete</span>
-                    </>
-                  )}
-                </button>
               </div>
             </div>
 
@@ -455,25 +410,7 @@ function SlugPageContent() {
         )}
       </div>
 
-      {/* Confirmation Modals */}
-      <Confirmation
-        isOpen={showDeleteConfirmation}
-        onClose={() => setShowDeleteConfirmation(false)}
-        onConfirm={handleDelete}
-        title="Delete Snippet"
-        message={
-          <div>
-            <p className="mb-3">Are you sure you want to delete this snippet?</p>
-            <p className="mb-4">
-              <span className="text-white font-semibold">"{snippet?.title}"</span> will be permanently deleted.
-            </p>
-          </div>
-        }
-        confirmText="Delete"
-        type="danger"
-        isLoading={isDeleting}
-      />
-
+      {/* Confirmation Modal - Only for exit edit mode */}
       <Confirmation
         isOpen={showEditConfirmation}
         onClose={() => setShowEditConfirmation(false)}

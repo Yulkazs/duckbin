@@ -2,7 +2,5 @@
 
 TO DO:
 
-- When editing > New slug link
-- When saved > Go auto to slug link
 - Footer: Copyright, buy coffee button + info button
 - 404 Custom page
