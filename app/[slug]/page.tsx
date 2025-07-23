@@ -69,12 +69,10 @@ function SlugPageContent() {
         setEditedTitle(snippetData.title);
         setEditedLanguage(snippetData.language);
         
-        // Handle theme - use snippet's theme if available, otherwise use dark as default
         const snippetTheme = snippetData.theme || 'dark';
         setEditedTheme(snippetTheme);
         setOriginalTheme(snippetTheme);
         
-        // Apply the snippet's theme immediately when loading
         changeTheme(snippetTheme);
         
         setHasChanges(false);
@@ -84,7 +82,6 @@ function SlugPageContent() {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load snippet';
         setError(errorMessage);
         
-        // If snippet not found, show a user-friendly message
         if (errorMessage.includes('not found') || errorMessage.includes('404')) {
         setError('This snippet could not be found. It may have been deleted or the link is incorrect.');
         }
@@ -279,9 +276,9 @@ function SlugPageContent() {
     );
   }
 
-  // Main content
+ // Main content
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen" style={{ backgroundColor: theme.background, color: theme.primary }}>
         {/* Toast notifications */}
         <div className="fixed top-4 right-4 z-50 space-y-2">
             <ToastContainer 
@@ -300,13 +297,13 @@ function SlugPageContent() {
         showSnippetData={true}
       />
       
-      <main className="flex-1 container mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto pt-16">
         {snippet && (
           <>
             {/* Action bar */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 px-4">
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold" style={{ color: `var(--primary, ${theme.primary})` }}>
+                <h1 className="text-2xl font-bold" style={{ color: theme.primary }}>
                   {snippet.title}
                 </h1>
                 <div className="flex items-center gap-2">
@@ -409,7 +406,7 @@ function SlugPageContent() {
             </div>
 
             {/* Snippet metadata */}
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4 px-4">
               <span>
                 <strong>Language:</strong> {getLanguageById(snippet.language)?.name || snippet.language}
               </span>
@@ -442,24 +439,23 @@ function SlugPageContent() {
             </div>
 
             {/* Code editor */}
-            <div className="rounded-lg shadow-sm">
-              <CodeEditor
-                value={isEditing ? editedCode : snippet.code}
-                onChange={handleCodeChange}
-                language={isEditing ? editedLanguage : snippet.language}
-                title={isEditing ? editedTitle : snippet.title}
-                onTitleChange={isEditing ? handleTitleChange : undefined}
-                onLanguageChange={isEditing ? (lang) => setEditedLanguage(lang) : undefined}
-                height="calc(100vh - 400px)"
-                readOnly={!isEditing}
-                placeholder={isEditing ? "Start typing your code..." : ""}
-                showSaveButton={false}
-                createdAt={new Date(snippet.createdAt || '').toLocaleDateString('en-GB')}
-              />
-            </div>
+            <CodeEditor
+              value={isEditing ? editedCode : snippet.code}
+              onChange={handleCodeChange}
+              language={isEditing ? editedLanguage : snippet.language}
+              title={isEditing ? editedTitle : snippet.title}
+              onTitleChange={isEditing ? handleTitleChange : undefined}
+              onLanguageChange={isEditing ? (lang) => setEditedLanguage(lang) : undefined}
+              height="600px"
+              readOnly={!isEditing}
+              placeholder={isEditing ? "Start typing your code..." : ""}
+              showSaveButton={false}
+              createdAt={new Date(snippet.createdAt || '').toLocaleDateString('en-GB')}
+              className="w-full"
+            />
 
             {/* Footer info */}
-            <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400 px-4">
               <p>
                 This snippet can be shared using the URL: 
                 <code className="ml-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">
@@ -469,27 +465,28 @@ function SlugPageContent() {
             </div>
           </>
         )}
-      </main>
-      {/* Confirmation Modal */}
+      </div>
+
+      {/* Confirmation Modals */}
       <Confirmation
         isOpen={showDeleteConfirmation}
         onClose={() => setShowDeleteConfirmation(false)}
         onConfirm={handleDelete}
-        title="Deleting Snippet"
+        title="Delete Snippet"
         message={
           <div>
             <p className="mb-3">Are you sure you want to delete this snippet?</p>
             <p className="mb-4">
-              <span className="text-white font-semibold">"{snippet?.title}"</span> will be permanently deleted and cannot be recovered.
+              <span className="text-white font-semibold">"{snippet?.title}"</span> will be permanently deleted.
             </p>
           </div>
         }
-        confirmText="Yes, Delete it"
+        confirmText="Delete"
         type="danger"
         isLoading={isDeleting}
       />
-      {/* Exit Edit Mode Confirmation Modal */}
-        <Confirmation
+
+      <Confirmation
         isOpen={showEditConfirmation}
         onClose={() => setShowEditConfirmation(false)}
         onConfirm={handleExitEditMode}
@@ -497,13 +494,13 @@ function SlugPageContent() {
         message={
             <div>
             <p className="mb-3">You have unsaved changes that will be lost.</p>
-            <p className="mb-4">Are you sure you want to exit edit mode without saving?</p>
+            <p className="mb-4">Are you sure you want to exit edit mode?</p>
             </div>
         }
-        confirmText="Yes, Discard Changes"
+        confirmText="Discard"
         cancelText="Keep Editing"
         type="warning"
-        />
+      />
     </div>
   );
 }

@@ -27,7 +27,7 @@ export default function Page() {
         selectedLanguage={selectedLanguage}
       />
       
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto pt-20">
         <CodeEditor
           value={code}
           onChange={handleCodeChange}
@@ -35,6 +35,7 @@ export default function Page() {
           onLanguageChange={setSelectedLanguage}
           height="600px"
           className="w-full"
+          placeholder="Start typing your code..."
         />
       </div>
     </div>

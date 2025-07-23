@@ -30,7 +30,7 @@ export const useTheme = () => {
     }
   }, [isSlugPage]);
 
-  // Handle route changes - reset to user theme when going to main page
+  // Handle route changes
   useEffect(() => {
     if (!isSlugPage) {
       setCurrentTheme(userSelectedTheme);
@@ -57,7 +57,6 @@ export const useTheme = () => {
         setUserSelectedTheme(themeName);
         localStorage.setItem('duckbin-theme', themeName);
       }
-      // Note: If we're on a slug page, this is just a temporary change for editing
     }
   };
 

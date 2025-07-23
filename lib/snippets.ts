@@ -47,7 +47,6 @@ export interface GetSnippetsParams {
 class CodeSnippetService {
   private baseUrl = '/api/code-snippets';
 
-  // Helper method to handle fetch responses
   private async handleResponse<T>(response: Response): Promise<T> {
     const data = await response.json();
     

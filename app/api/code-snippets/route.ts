@@ -9,7 +9,6 @@ async function safeParseJSON(request: NextRequest) {
   try {
     const text = await request.text();
     
-    // Check if the body is empty
     if (!text || text.trim() === '') {
       return { error: 'Request body is empty' };
     }

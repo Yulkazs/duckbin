@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 
-// Define the connection interface
 interface MongoConnection {
   conn: mongoose.Connection | null;
   promise: Promise<mongoose.Connection> | null;
@@ -53,7 +52,6 @@ async function connectDB(): Promise<mongoose.Connection> {
   return cached.conn;
 }
 
-// Helper function to disconnect (useful for testing)
 export async function disconnectDB(): Promise<void> {
   if (cached.conn) {
     await mongoose.disconnect();
@@ -76,5 +74,4 @@ export function getConnectionStatus(): string {
   return states[cached.conn.readyState as keyof typeof states] || 'unknown';
 }
 
-// Export the connection function as default
 export default connectDB;

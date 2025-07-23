@@ -60,6 +60,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [monaco, setMonaco] = useState<MonacoEditor | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [localTitle, setLocalTitle] = useState(title);
+  const [isMobile, setIsMobile] = useState(false);
   
   // Save functionality states
   const [isSaving, setIsSaving] = useState(false);
@@ -86,11 +87,23 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const lineCount = value.split('\n').length;
   const displayLanguage = language.charAt(0).toUpperCase() + language.slice(1);
 
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
+
   const handleTitleChange = (newTitle: string) => {
     if (newTitle.length <= 100) {
-      setLocalTitle(newTitle);
+      const capitalizedTitle = newTitle.charAt(0).toUpperCase() + newTitle.slice(1);
+      setLocalTitle(capitalizedTitle);
       if (onTitleChange) {
-        onTitleChange(newTitle);
+        onTitleChange(capitalizedTitle);
       }
     }
   };
@@ -309,43 +322,51 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         
         monaco.editor.defineTheme(themeName, themeConfig);
 
-        editorRef.current = monaco.editor.create(containerRef.current!, {
-          value: value,
-          language: language,
-          theme: themeName,
-          readOnly: readOnly,
-          fontSize: 14,
-          lineNumbers: 'on',
-          roundedSelection: false,
-          scrollBeyondLastLine: false,
-          automaticLayout: true,
+        // Responsive Monaco options
+        const responsiveOptions = isMobile ? {
+          fontSize: 12,
+          lineHeight: 18,
+          scrollbar: {
+            vertical: 'auto',
+            horizontal: 'auto',
+            useShadows: false,
+            verticalScrollbarSize: 14,
+            horizontalScrollbarSize: 14,
+          },
           minimap: { enabled: false },
           wordWrap: 'on',
-          tabSize: 2,
-          insertSpaces: true,
-          detectIndentation: true,
-          folding: true,
-          foldingStrategy: 'indentation',
-          showFoldingControls: 'always',
-          contextmenu: true,
-          mouseWheelZoom: true,
-          cursorBlinking: 'blink',
-          smoothScrolling: true,
+          wrappingIndent: 'indent',
+          scrollBeyondLastLine: false,
+          overviewRulerLanes: 0,
+          hideCursorInOverviewRuler: true,
+          overviewRulerBorder: false,
+          lineNumbers: 'on',
+          lineNumbersMinChars: 3,
+          glyphMargin: false,
+          folding: false,
+          mouseWheelZoom: false,
+          quickSuggestions: false,
+          acceptSuggestionOnEnter: 'smart',
+          contextmenu: false,
+          links: false,
+          colorDecorators: false,
+          codeLens: false,
+          hover: {
+            enabled: false,
+          },
+          parameterHints: {
+            enabled: false,
+          },
+          suggestOnTriggerCharacters: false,
+        } : {
+          fontSize: 14,
+          minimap: { enabled: false },
           scrollbar: {
             vertical: 'auto',
             horizontal: 'auto',
             useShadows: false,
             verticalScrollbarSize: 10,
             horizontalScrollbarSize: 10,
-          },
-          bracketPairColorization: {
-            enabled: true,
-          },
-          guides: {
-            bracketPairs: true,
-            bracketPairsHorizontal: true,
-            highlightActiveBracketPair: true,
-            indentation: true,
           },
           suggestOnTriggerCharacters: true,
           acceptSuggestionOnEnter: 'on',
@@ -357,6 +378,38 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           hover: {
             enabled: true,
           },
+          contextmenu: true,
+          mouseWheelZoom: true,
+        };
+
+        editorRef.current = monaco.editor.create(containerRef.current!, {
+          value: value,
+          language: language,
+          theme: themeName,
+          readOnly: readOnly,
+          lineNumbers: 'on',
+          roundedSelection: false,
+          scrollBeyondLastLine: false,
+          automaticLayout: true,
+          wordWrap: 'on',
+          tabSize: 2,
+          insertSpaces: true,
+          detectIndentation: true,
+          folding: !isMobile,
+          foldingStrategy: 'indentation',
+          showFoldingControls: isMobile ? 'never' : 'always',
+          cursorBlinking: 'blink',
+          smoothScrolling: true,
+          bracketPairColorization: {
+            enabled: true,
+          },
+          guides: {
+            bracketPairs: !isMobile,
+            bracketPairsHorizontal: !isMobile,
+            highlightActiveBracketPair: true,
+            indentation: !isMobile,
+          },
+          ...responsiveOptions
         });
 
         editorRef.current.onDidChangeModelContent(() => {
@@ -385,7 +438,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         editorRef.current = null;
       }
     };
-  }, [monacoLoaded, monaco]);
+  }, [monacoLoaded, monaco, isMobile]);
 
   useEffect(() => {
     if (!isEditorReady || !editorRef.current || !monaco) return;
@@ -443,7 +496,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     return (
       <button
         onClick={() => setShowImportModal(true)}
-        className="flex items-center gap-2 px-3 py-1 rounded text-sm font-medium transition-all duration-200 mr-2"
+        className={`flex items-center gap-2 rounded text-sm font-medium transition-all duration-200 ${
+          isMobile ? 'px-2 py-1' : 'px-3 py-1 mr-2'
+        }`}
         style={{
           backgroundColor: importStatus === 'success' ? '#10b981' : importStatus === 'error' ? '#ef4444' : theme.primary + '20',
           color: importStatus === 'success' || importStatus === 'error' ? theme.background : theme.primary,
@@ -453,18 +508,18 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       >
         {importStatus === 'success' ? (
           <>
-            <Check size={14} />
-            <span>Imported!</span>
+            <Check size={isMobile ? 12 : 14} />
+            {!isMobile && <span>Imported!</span>}
           </>
         ) : importStatus === 'error' ? (
           <>
-            <X size={14} />
-            <span>Error</span>
+            <X size={isMobile ? 12 : 14} />
+            {!isMobile && <span>Error</span>}
           </>
         ) : (
           <>
-            <Download size={14} />
-            <span>Import</span>
+            <Download size={isMobile ? 12 : 14} />
+            {!isMobile && <span>Import</span>}
           </>
         )}
       </button>
@@ -491,7 +546,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       <button
         onClick={handleSave}
         disabled={isSaving || !value.trim()}
-        className="flex items-center gap-2 px-3 py-1 rounded text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        className={`flex items-center gap-2 rounded text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+          isMobile ? 'px-2 py-1 ml-1' : 'px-3 py-1'
+        }`}
         style={{
           backgroundColor: saveStatus === 'success' ? '#10b981' : saveStatus === 'error' ? '#ef4444' : theme.primary,
           color: theme.background,
@@ -499,23 +556,23 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       >
         {isSaving ? (
           <>
-            <Loader2 size={14} className="animate-spin" />
-            <span>Saving...</span>
+            <Loader2 size={isMobile ? 12 : 14} className="animate-spin" />
+            {!isMobile && <span>Saving...</span>}
           </>
         ) : saveStatus === 'success' ? (
           <>
-            <Check size={14} />
-            <span>Saved!</span>
+            <Check size={isMobile ? 12 : 14} />
+            {!isMobile && <span>Saved!</span>}
           </>
         ) : saveStatus === 'error' ? (
           <>
-            <X size={14} />
-            <span>Error</span>
+            <X size={isMobile ? 12 : 14} />
+            {!isMobile && <span>Error</span>}
           </>
         ) : (
           <>
-            <Save size={14} />
-            <span>Save</span>
+            <Save size={isMobile ? 12 : 14} />
+            {!isMobile && <span>Save</span>}
           </>
         )}
       </button>
@@ -537,13 +594,17 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
     return (
       <div
-        className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all duration-300 ${
+        className={`fixed z-50 flex items-center gap-2 rounded-lg shadow-lg text-white text-sm font-medium transition-all duration-300 ${
+          isMobile 
+            ? 'top-2 left-2 right-2 px-3 py-2' 
+            : 'top-4 right-4 px-4 py-3'
+        } ${
           toast.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
         }`}
         style={{ backgroundColor: colors.bg }}
       >
         {colors.icon}
-        <span>{toast.message}</span>
+        <span className={isMobile ? 'text-xs' : ''}>{toast.message}</span>
       </div>
     );
   };
@@ -560,10 +621,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             color: theme.primary
           }}
         >
-          <div className="text-center">
+          <div className="text-center px-4">
             <div className="text-red-500 mb-2">⚠️</div>
-            <p className="text-sm text-red-500">{loadError}</p>
-            <p className="text-xs opacity-60 mt-1">Please check your internet connection</p>
+            <p className={`text-red-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>{loadError}</p>
+            <p className={`opacity-60 mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}>Please check your internet connection</p>
           </div>
         </div>
       </div>
@@ -600,13 +661,15 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             backgroundColor: theme.background
           }}
         >
-          {/* Title bar - integrated at the top */}
+          {/* Title bar - responsive */}
           <div 
-            className="flex items-center justify-between px-4 py-2 border-b flex-shrink-0"
+            className={`flex items-center justify-between border-b flex-shrink-0 ${
+              isMobile ? 'px-2 py-2' : 'px-4 py-2'
+            }`}
             style={{ 
               borderColor: theme.primary + '20',
               backgroundColor: theme.background,
-              height: '36px'
+              height: isMobile ? '44px' : '36px'
             }}
           >
 
@@ -617,8 +680,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             readOnly={readOnly}
             placeholder={readOnly ? "" : "Your title"} 
             maxLength={100}
-            className={`text-sm px-2 py-1 rounded border-0 outline-none bg-transparent flex-1 ${
+            className={`outline-none bg-transparent flex-1 border-0 ${
               readOnly ? 'cursor-default' : ''
+            } ${
+              isMobile ? 'text-xs px-1 py-1' : 'text-sm px-2 py-1'
             }`} 
             style={{ 
               color: theme.primary,
@@ -627,7 +692,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             }}
           />
             
-            <div className="flex items-center">
+            <div className={`flex items-center ${isMobile ? 'gap-1' : ''}`}>
               {/* Import button */}
               {renderImportButton()}
               
@@ -643,15 +708,15 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             style={{ minHeight: 0 }}
           />
           
-          {/* Placeholder overlay */}
+          {/* Placeholder overlay - responsive positioning */}
           {placeholder && (
             <div
               ref={placeholderRef}
               className="absolute pointer-events-none"
               style={{
-                top: '56px',
-                left: '60px',
-                fontSize: '14px',
+                top: isMobile ? '64px' : '56px',
+                left: isMobile ? '20px' : '60px',
+                fontSize: isMobile ? '12px' : '14px',
                 fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
                 color: theme.primary,
                 opacity: 0.5,
@@ -662,34 +727,42 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             </div>
           )}
 
-          {/* Bottom status bar - integrated at the bottom */}
+          {/* Bottom status bar - responsive */}
           <div 
-            className="flex justify-between items-center px-4 py-1 border-t text-xs flex-shrink-0"
+            className={`flex justify-between items-center border-t flex-shrink-0 ${
+              isMobile ? 'px-2 py-1 text-xs flex-col gap-1' : 'px-4 py-1 text-xs'
+            }`}
             style={{ 
               borderColor: theme.primary + '20',
               backgroundColor: theme.background,
               color: theme.primary,
               opacity: 0.8,
-              height: '28px'
+              height: isMobile ? 'auto' : '28px',
+              minHeight: isMobile ? '44px' : '28px'
             }}
           >
-            <div className="flex items-center gap-2">
-              <span>{createdAt}</span>
+            <div className={`flex items-center gap-2 ${isMobile ? 'w-full justify-between' : ''}`}>
+              <span className={isMobile ? 'text-xs' : ''}>{createdAt}</span>
+              {isMobile && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span>{displayLanguage}</span>
+                </div>
+              )}
               {saveError && (
-                <span className="text-red-500" title={saveError}>
-                  ⚠️ {saveError}
+                <span className="text-red-500 text-xs" title={saveError}>
+                  ⚠️ {isMobile ? 'Save error' : saveError}
                 </span>
               )}
               {importError && (
-                <span className="text-red-500" title={importError}>
-                  ⚠️ {importError}
+                <span className="text-red-500 text-xs" title={importError}>
+                  ⚠️ {isMobile ? 'Import error' : importError}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-4">
-              <span>{displayLanguage}</span>
-              <span>{characterCount} characters</span>
-              <span>{lineCount} lines</span>
+            <div className={`flex items-center gap-4 ${isMobile ? 'w-full justify-between text-xs' : ''}`}>
+              {!isMobile && <span>{displayLanguage}</span>}
+              <span className={isMobile ? 'text-xs' : ''}>{characterCount} characters</span>
+              <span className={isMobile ? 'text-xs' : ''}>{lineCount} lines</span>
             </div>
           </div>
         </div>

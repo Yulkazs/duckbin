@@ -23,7 +23,6 @@ export const ThemeDropdown: React.FC<ThemeDropdownProps> = ({
   const { currentTheme, changeTheme, themes, theme } = useThemeContext();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Use selectedTheme if provided, otherwise use currentTheme
   const displayTheme = selectedTheme || currentTheme;
   const currentThemeData = themes[displayTheme];
 

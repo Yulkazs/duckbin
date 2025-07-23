@@ -55,6 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
       className={`w-full ${className}`}
       style={{ 
         backgroundColor: theme.background,
+        paddingTop: '1.5rem',
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

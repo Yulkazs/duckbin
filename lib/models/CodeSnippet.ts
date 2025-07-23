@@ -43,7 +43,7 @@ const CodeSnippetSchema: Schema<ICodeSnippet> = new Schema({
     match: [/^[a-zA-Z0-9]{7}$/, 'Slug must be exactly 7 alphanumeric characters']
   }
 }, {
-  timestamps: true, // This automatically adds createdAt and updatedAt
+  timestamps: true,
   collection: 'code_snippets'
 });
 
@@ -61,7 +61,6 @@ const generateSlug = async (): Promise<string> => {
     }
     attempts++;
     
-    // Check if slug already exists
     const existing = await mongoose.models.CodeSnippet?.findOne({ slug });
     if (!existing) break;
     
@@ -73,7 +72,6 @@ const generateSlug = async (): Promise<string> => {
   return slug;
 };
 
-// Pre-save middleware to generate slug
 CodeSnippetSchema.pre('save', async function(next) {
   if (this.isNew && !this.slug) {
     try {
@@ -85,13 +83,11 @@ CodeSnippetSchema.pre('save', async function(next) {
   next();
 });
 
-// Create indexes for better query performance
 CodeSnippetSchema.index({ createdAt: -1 });
 CodeSnippetSchema.index({ title: 1 });
 CodeSnippetSchema.index({ language: 1 });
 CodeSnippetSchema.index({ slug: 1 }, { unique: true });
 
-// Prevent re-compilation during development
 const CodeSnippet: Model<ICodeSnippet> = mongoose.models.CodeSnippet || mongoose.model<ICodeSnippet>('CodeSnippet', CodeSnippetSchema);
 
 export default CodeSnippet;
