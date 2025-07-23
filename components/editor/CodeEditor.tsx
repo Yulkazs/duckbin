@@ -66,7 +66,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   currentTitle,
   currentCode,
   currentLanguage,
-  currentTheme
+  currentTheme: propCurrentTheme
 }) => {
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -124,11 +124,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         language !== originalSnippet.language ||
         currentTheme !== originalSnippet.theme;
       
-      setHasUnsavedChanges(contentChanged); // Now explicitly boolean
+      setHasUnsavedChanges(contentChanged);
     } else {
       // For new snippets, check if any content exists
       const hasContent = Boolean(localTitle.trim() || value.trim());
-      setHasUnsavedChanges(hasContent); // Now explicitly boolean
+      setHasUnsavedChanges(hasContent);
     }
   }, [localTitle, value, language, currentTheme, isEditing, originalSnippet]);
 
@@ -241,9 +241,13 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   };
 
-  // Save snippet function with automatic navigation
+  // Save snippet function with automatic navigation - FIXED TO PREVENT DOUBLE SAVING
   const handleSave = async () => {
-    if (isSaving) return;
+    // Prevent multiple simultaneous saves
+    if (isSaving) {
+      console.log('Save already in progress, ignoring duplicate call');
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -255,7 +259,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         title: (isEditing && currentTitle ? currentTitle : localTitle).trim() || 'Untitled Snippet',
         code: isEditing && currentCode !== undefined ? currentCode : value,
         language: isEditing && currentLanguage ? currentLanguage : language,
-        theme: isEditing && currentTheme ? currentTheme : currentTheme
+        theme: isEditing && propCurrentTheme ? propCurrentTheme : currentTheme
       };
 
       const validation = snippetService.validateSnippetData(snippetData);
@@ -289,16 +293,15 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       }
       
       // Call the parent's onSave callback with the response
+      // This should only be called AFTER successful save to prevent double saves
       if (onSave) {
         onSave(response);
       }
 
       // For new snippets (not editing), navigate directly
-      if (!isEditing) {
+      if (!isEditing && response.snippet?.slug) {
         setTimeout(() => {
-          if (response.snippet?.slug) {
-            router.push(`/${response.snippet.slug}`);
-          }
+          router.push(`/${response.snippet.slug}`);
         }, 1000);
       }
 
