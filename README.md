@@ -1,4 +1,4 @@
-# ![Logo](https://duckbin.vercel.app/duckbin-icon.png) Duckbin
+# Duckbin
 
 [Visit Duckbin →](https://duckbin.vercel.app)
 
