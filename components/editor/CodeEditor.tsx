@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { getSyntaxColors, createMonacoTheme } from '@/utils/syntax-colors';
@@ -44,6 +44,11 @@ interface CodeEditorProps {
   currentCode?: string;
   currentLanguage?: string;
   currentTheme?: string;
+  // New responsive props
+  minHeight?: string;
+  maxHeight?: string;
+  autoResize?: boolean;
+  fillContainer?: boolean;
 }
 
 export const CodeEditor: React.FC<CodeEditorProps> = ({
@@ -51,6 +56,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onChange,
   language = 'javascript',
   height = '400px',
+  minHeight = '300px',
+  maxHeight = '80vh',
+  autoResize = false,
+  fillContainer = false,
   readOnly = false,
   className = '',
   placeholder = '',
@@ -70,6 +79,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 }) => {
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const placeholderRef = useRef<HTMLDivElement>(null);
   const { theme, currentTheme } = useThemeContext();
   const router = useRouter();
@@ -80,6 +90,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [localTitle, setLocalTitle] = useState(title);
   const [isMobile, setIsMobile] = useState(false);
+  const [containerHeight, setContainerHeight] = useState<string>(height);
   
   // Save functionality states
   const [isSaving, setIsSaving] = useState(false);
@@ -91,7 +102,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importError, setImportError] = useState<string | null>(null);
 
-  // Track if content has been modified - FIXED TYPE ERROR
+  // Track if content has been modified
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [initialContent, setInitialContent] = useState({
     title: title,
@@ -115,7 +126,70 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const lineCount = value.split('\n').length;
   const displayLanguage = language.charAt(0).toUpperCase() + language.slice(1);
 
-  // Check if content has been modified from original - FIXED TYPE ERROR
+  // Responsive height calculation
+  const calculateResponsiveHeight = useCallback(() => {
+    if (fillContainer && wrapperRef.current) {
+      const wrapper = wrapperRef.current;
+      const rect = wrapper.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const availableHeight = viewportHeight - rect.top - 20; // 20px buffer
+      
+      const minHeightPx = parseInt(minHeight);
+      const maxHeightPx = maxHeight.includes('vh') 
+        ? (parseInt(maxHeight) / 100) * viewportHeight
+        : parseInt(maxHeight);
+      
+      const calculatedHeight = Math.max(minHeightPx, Math.min(maxHeightPx, availableHeight));
+      return `${calculatedHeight}px`;
+    }
+    
+    if (autoResize && value) {
+      const lines = value.split('\n').length;
+      const lineHeight = isMobile ? 18 : 20;
+      const titleBarHeight = isMobile ? 44 : 36;
+      const statusBarHeight = isMobile ? 44 : 28;
+      const padding = 20;
+      
+      const contentHeight = lines * lineHeight + titleBarHeight + statusBarHeight + padding;
+      const minHeightPx = parseInt(minHeight);
+      const maxHeightPx = maxHeight.includes('vh') 
+        ? (parseInt(maxHeight) / 100) * window.innerHeight
+        : parseInt(maxHeight);
+      
+      const calculatedHeight = Math.max(minHeightPx, Math.min(maxHeightPx, contentHeight));
+      return `${calculatedHeight}px`;
+    }
+    
+    return height;
+  }, [fillContainer, autoResize, value, minHeight, maxHeight, height, isMobile]);
+
+  // Update container height when dependencies change
+  useEffect(() => {
+    const newHeight = calculateResponsiveHeight();
+    if (newHeight !== containerHeight) {
+      setContainerHeight(newHeight);
+    }
+  }, [calculateResponsiveHeight, containerHeight]);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const newIsMobile = window.innerWidth < 1024;
+      setIsMobile(newIsMobile);
+      
+      if (fillContainer || autoResize) {
+        const newHeight = calculateResponsiveHeight();
+        setContainerHeight(newHeight);
+      }
+    };
+    
+    handleResize(); // Initial call
+    window.addEventListener('resize', handleResize);
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, [fillContainer, autoResize, calculateResponsiveHeight]);
+
+  // Check if content has been modified from original
   useEffect(() => {
     if (isEditing && originalSnippet) {
       const contentChanged = 
@@ -126,22 +200,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       
       setHasUnsavedChanges(contentChanged);
     } else {
-      // For new snippets, check if any content exists
       const hasContent = Boolean(localTitle.trim() || value.trim());
       setHasUnsavedChanges(hasContent);
     }
   }, [localTitle, value, language, currentTheme, isEditing, originalSnippet]);
-
-  useEffect(() => {
-    const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-    
-    checkIsMobile();
-    window.addEventListener('resize', checkIsMobile);
-    
-    return () => window.removeEventListener('resize', checkIsMobile);
-  }, []);
 
   const handleTitleChange = (newTitle: string) => {
     if (newTitle.length <= 100) {
@@ -241,9 +303,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   };
 
-  // Save snippet function with automatic navigation - FIXED TO PREVENT DOUBLE SAVING
+  // Save snippet function with automatic navigation
   const handleSave = async () => {
-    // Prevent multiple simultaneous saves
     if (isSaving) {
       console.log('Save already in progress, ignoring duplicate call');
       return;
@@ -254,7 +315,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       setSaveError(null);
       setSaveStatus('idle');
 
-      // Use current values from parent component when editing existing snippets
       const snippetData = {
         title: (isEditing && currentTitle ? currentTitle : localTitle).trim() || 'Untitled Snippet',
         code: isEditing && currentCode !== undefined ? currentCode : value,
@@ -271,18 +331,15 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       let actionMessage = '';
 
       if (isEditing && existingSlug && hasUnsavedChanges) {
-        // Fork the existing snippet (create new one)
         response = await snippetService.forkSnippet(existingSlug, snippetData);
         actionMessage = 'Forked and saved';
       } else {
-        // Create new snippet
         response = await snippetService.createSnippet(snippetData);
         actionMessage = 'Saved';
       }
       
       setSaveStatus('success');
       
-      // Copy URL to clipboard
       if (response.url) {
         const copySuccess = await copyToClipboard(response.url);
         if (copySuccess) {
@@ -292,20 +349,16 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         }
       }
       
-      // Call the parent's onSave callback with the response
-      // This should only be called AFTER successful save to prevent double saves
       if (onSave) {
         onSave(response);
       }
 
-      // For new snippets (not editing), navigate directly
       if (!isEditing && response.snippet?.slug) {
         setTimeout(() => {
           router.push(`/${response.snippet.slug}`);
         }, 1000);
       }
 
-      // Reset the unsaved changes state
       setHasUnsavedChanges(false);
       setInitialContent({
         title: snippetData.title,
@@ -695,11 +748,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
   if (loadError) {
     return (
-      <div className={`space-y-2 ${className}`}>
+      <div className={`space-y-2 ${className}`} ref={wrapperRef}>
         <div 
           className="border-b rounded-lg overflow-hidden flex items-center justify-center"
           style={{ 
-            height,
+            height: containerHeight,
             borderColor: theme.primary + '40',
             backgroundColor: theme.background,
             color: theme.primary
@@ -718,11 +771,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   // Show loading state with your custom Loading component
   if (!monacoLoaded) {
     return (
-      <div className={`space-y-2 ${className}`}>
+      <div className={`space-y-2 ${className}`} ref={wrapperRef}>
         <div 
           className="border rounded-lg overflow-hidden flex items-center justify-center"
           style={{ 
-            height,
+            height: containerHeight,
             borderColor: theme.primary + '40',
             backgroundColor: theme.background,
             color: theme.primary
@@ -736,11 +789,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
   return (
     <>
-      <div className={`${className}`}>
+      <div className={`${className}`} ref={wrapperRef}>
         <div 
           className="border rounded-lg overflow-hidden relative flex flex-col"
           style={{ 
-            height,
+            height: containerHeight,
             borderColor: theme.primary + '40',
             backgroundColor: theme.background
           }}

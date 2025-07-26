@@ -27,7 +27,6 @@ export const metadata: Metadata = {
   authors: [{ name: "Yulkaz" }],
   keywords: ["code", "sharing", "platform", "snippets", "programming"],
   creator: "Yulkaz",
-  themeColor: "#141414",
   openGraph: {
     title: "duckbin",
     description: "Code Sharing Platform",

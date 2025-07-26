@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { ThemeProvider, useThemeContext } from '@/components/ui/ThemeProvider';
 import { Confirmation } from '@/components/ui/Confirmation';
 import { snippetService, type CodeSnippetData } from '@/lib/snippets';
@@ -253,7 +254,7 @@ function SlugPageContent() {
         showSnippetData={true}
       />
       
-      <div className="max-w-7xl mx-auto pt-16">
+      <div className="max-w-7xl mx-auto pt-10">
         {snippet && (
           <>
             {/* Action bar */}
@@ -377,11 +378,10 @@ function SlugPageContent() {
               onLanguageChange={isEditing ? (lang: string) => setEditedLanguage(lang) : undefined}
               height="600px"
               readOnly={!isEditing}
-              placeholder={isEditing ? "Start typing your code..." : ""}
               showSaveButton={isEditing}
               onSave={handleSave}
               createdAt={new Date(snippet.createdAt || '').toLocaleDateString('en-GB')}
-              className="w-full"
+              className="w-full mt-8 px-2 sm:px-4 md:px-6 lg:px-8"
               existingSlug={snippet.slug}
               isEditing={isEditing}
               originalSnippet={snippet}
@@ -426,6 +426,7 @@ function SlugPageContent() {
         cancelText="Keep Editing"
         type="warning"
       />
+      <Footer className="mt-10" />
     </div>
   );
 }

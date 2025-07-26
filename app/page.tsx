@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useThemeContext } from "@/components/ui/ThemeProvider";
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { getDefaultLanguage, type Language } from '@/utils/languages';
 
@@ -27,7 +28,7 @@ export default function Page() {
         selectedLanguage={selectedLanguage}
       />
       
-      <div className="max-w-7xl mx-auto pt-20">
+      <div className="max-w-7xl mx-auto pt-15 px-4 sm:px-6 lg:px-8">
         <CodeEditor
           value={code}
           onChange={handleCodeChange}
@@ -35,9 +36,9 @@ export default function Page() {
           onLanguageChange={setSelectedLanguage}
           height="600px"
           className="w-full"
-          placeholder="Start typing your code..."
         />
       </div>
+      <Footer className="mt-10" />
     </div>
   );
 }
