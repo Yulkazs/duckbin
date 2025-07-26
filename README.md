@@ -1,4 +1,4 @@
-# 🦆 Duckbin
+# ![Logo](https://duckbin.vercel.app/duckbin-icon.png) Duckbin
 
 [Visit Duckbin →](https://duckbin.vercel.app)
 
@@ -31,7 +31,8 @@
 2. Paste or write your code in the editor.
 3. Select a language for syntax highlighting.
 4. Optionally switch between 10 available themes.
-5. Click **Save** to generate a link you can share.
+5. Optionally import code directly from a public GitHub file.
+6. Click **Save** to generate a shareable link.
 
 ---
 
@@ -46,15 +47,7 @@
 
 ## 📬 Feedback & Contributions
 
-Feature requests, suggestions, and contributions are welcome.  
-The GitHub repository will be available soon.
-
----
-
-## 📄 License
-
-Licensed under the [MIT License](LICENSE).
-
----
+We welcome your feedback, feature requests, and contributions!  
+Feel free to [open an issue](https://github.com/yulkaz/duckbin/issues) or [submit a pull request](https://github.com/yulkaz/duckbin/pulls).  
 
 > Designed for developers who value speed, clarity, and simplicity.

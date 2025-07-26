@@ -1,6 +1,0 @@
-
-
-TO DO:
-
-- Footer: Copyright, buy coffee button + info button
-- 404 Custom page
