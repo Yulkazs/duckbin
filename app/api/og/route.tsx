@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
         }}
       >
         <img
-          src="https://duckbin.vercel.app/svg/duckbin.svg"
+          src="https://duckbin.vercel.app/icons/duck-dark.svg"
           alt="duckbin"
           width={136}
           height={140}
