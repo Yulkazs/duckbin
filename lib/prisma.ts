@@ -1,17 +1,23 @@
-// lib/prisma.ts
-// Replaces lib/mongodb.ts
-// Usage: import { prisma } from '@/lib/prisma'
+import "dotenv/config";
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@/lib/generated/prisma/client';
 
-import { PrismaClient } from '@prisma/client'
+const connectionString = process.env.DATABASE_URL!;
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
+// Parse the connection string and modify it if needed
+const modifiedConnectionString = connectionString.includes('sslmode=')
+  ? connectionString.replace(/sslmode=\w+/, 'sslmode=verify-full')
+  : connectionString + (connectionString.includes('?') ? '&' : '?') + 'sslmode=verify-full';
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  })
+const pool = new Pool({
+  connectionString: modifiedConnectionString,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
+
+export { prisma };

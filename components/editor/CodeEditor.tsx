@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { getSyntaxColors, createMonacoTheme } from '@/utils/syntax-colors';
-import { snippetService } from '@/lib/snippets';
+import { createSnippet, forkSnippet, validateSnippet } from '@/lib/snippets';
 import { getLanguageById, languages } from '@/utils/languages';
 import { Save, Loader2, Check, X, Download, Copy, AlertCircle, GitBranch } from 'lucide-react';
 import { ImportGithub } from '@/components/selectors/ImportGithub';
@@ -322,19 +322,21 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         theme: isEditing && propCurrentTheme ? propCurrentTheme : currentTheme
       };
 
-      const validation = snippetService.validateSnippetData(snippetData);
-      if (!validation.isValid) {
-        throw new Error(validation.errors.join(', '));
+      const errors = validateSnippet(snippetData);
+      if (errors.length > 0) {
+        throw new Error(errors.join(', '));
       }
 
       let response;
       let actionMessage = '';
 
       if (isEditing && existingSlug && hasUnsavedChanges) {
-        response = await snippetService.forkSnippet(existingSlug, snippetData);
+        response = await forkSnippet(existingSlug, snippetData);
+
         actionMessage = 'Forked and saved';
       } else {
-        response = await snippetService.createSnippet(snippetData);
+        response = await createSnippet(snippetData);
+
         actionMessage = 'Saved';
       }
       
