@@ -1,130 +1,139 @@
 // utils/colors.ts
-// Refreshed theme palette for duckbin v2
 
 export interface Theme {
   name: string
   background: string
   primary: string
-  secondary: string    // muted text, borders
-  accent: string       // highlight color for badges/buttons
-  surface: string      // slightly lifted background (cards, panels)
+  secondary: string
+  accent: string
+  surface: string
+  surfaceSecondary: string
+  gradientEnabled: string
+  gradientDisabled: string
   logo: string
 }
 
 export const themes: Record<string, Theme> = {
+
   // ── Dark ──────────────────────────────────────────────────────────────────
-  obsidian: {
-    name: 'Obsidian',
-    background: '#0A0A0F',
-    primary: '#E8E8F0',
-    secondary: '#52525E',
-    accent: '#7C6AF7',
-    surface: '#111118',
-    logo: '/svg/duckbin.svg',
+  dark: {
+    name: 'Dark',
+    background: '#050505',
+    primary: '#FFFFFF',
+    secondary: '#848489',
+    accent: '#56F337',
+    surface: '#434343',
+    surfaceSecondary: '#848489',
+    gradientEnabled: 'linear-gradient(to right, #56F337, #434343)',
+    gradientDisabled: 'linear-gradient(to right, #434343, #D9D9D9)',
+    logo: '/icons/duck-dark.svg',
   },
-  // ── Neutral dark — the old "dark" feel, refined ───────────────────────────
-  carbon: {
-    name: 'Carbon',
-    background: '#0D0D0D',
-    primary: '#F0EFE9',
-    secondary: '#4A4A4A',
-    accent: '#E05C2B',
-    surface: '#161616',
-    logo: '/svg/duckbin.svg',
+
+  // ── Light ─────────────────────────────────────────────────────────────────
+  light: {
+    name: 'Light',
+    background: '#FFFFFF',
+    primary: '#050505',
+    secondary: '#6B6B6B',
+    accent: '#050505',
+    surface: '#F0F0F0',
+    surfaceSecondary: '#D9D9D9',
+    gradientEnabled: 'linear-gradient(to right, #050505, #6B6B6B)',
+    gradientDisabled: 'linear-gradient(to right, #D9D9D9, #F0F0F0)',
+    logo: '/icons/duck-light.svg',
   },
-  // ── Deep midnight blue ─────────────────────────────────────────────────────
-  abyss: {
-    name: 'Abyss',
-    background: '#060912',
-    primary: '#C8D8FF',
-    secondary: '#2E3D5C',
-    accent: '#4F8EF7',
-    surface: '#0C1220',
-    logo: '/svg/duckbin-midnight.svg',
-  },
-  // ── Dark forest green ──────────────────────────────────────────────────────
-  moss: {
-    name: 'Moss',
-    background: '#080E09',
-    primary: '#C8DCC4',
-    secondary: '#2D3E2C',
-    accent: '#5BAD6F',
-    surface: '#0D160E',
-    logo: '/svg/duckbin-forest.svg',
-  },
-  // ── Dark wine / deep crimson ──────────────────────────────────────────────
-  merlot: {
-    name: 'Merlot',
-    background: '#0E0508',
-    primary: '#F5D0D8',
-    secondary: '#3D1825',
-    accent: '#C1435A',
-    surface: '#160B10',
-    logo: '/svg/duckbin-wine.svg',
-  },
-  // ── Warm dark (coffee/amber) ──────────────────────────────────────────────
-  ember: {
-    name: 'Ember',
-    background: '#0F0A06',
-    primary: '#F0E0C8',
-    secondary: '#3D2D1A',
+
+  // ── Coffee ────────────────────────────────────────────────────────────────
+  coffee: {
+    name: 'Coffee',
+    background: '#38220F',
+    primary: '#967259',
+    secondary: '#6B4F38',
     accent: '#D4813A',
-    surface: '#180F08',
-    logo: '/svg/duckbin-coffee.svg',
+    surface: '#4E3020',
+    surfaceSecondary: '#6B4F38',
+    gradientEnabled: 'linear-gradient(to right, #D4813A, #4E3020)',
+    gradientDisabled: 'linear-gradient(to right, #4E3020, #967259)',
+    logo: '/icons/duck-coffee.svg',
   },
-  // ── Light themes ──────────────────────────────────────────────────────────
-  chalk: {
-    name: 'Chalk',
-    background: '#F5F4F0',
-    primary: '#1A1A24',
-    secondary: '#9090A0',
-    accent: '#5047CC',
-    surface: '#ECEAE4',
-    logo: '/svg/duckbin-light.svg',
+
+  // ── Wine ──────────────────────────────────────────────────────────────────
+  wine: {
+    name: 'Wine',
+    background: '#3F0112',
+    primary: '#9A0000',
+    secondary: '#6B0020',
+    accent: '#C1435A',
+    surface: '#5A0120',
+    surfaceSecondary: '#6B0020',
+    gradientEnabled: 'linear-gradient(to right, #C1435A, #5A0120)',
+    gradientDisabled: 'linear-gradient(to right, #5A0120, #9A0000)',
+    logo: '/icons/duck-wine.svg',
   },
-  petal: {
-    name: 'Petal',
-    background: '#FDF0F8',
-    primary: '#2A102A',
+
+  // ── Pink ──────────────────────────────────────────────────────────────────
+  pink: {
+    name: 'Pink',
+    background: '#F9CEE7',
+    primary: '#E68BBE',
     secondary: '#C490B8',
     accent: '#C0369A',
-    surface: '#F5E4F0',
-    logo: '/svg/duckbin-pinky.svg',
+    surface: '#F0B8D8',
+    surfaceSecondary: '#C490B8',
+    gradientEnabled: 'linear-gradient(to right, #C0369A, #F0B8D8)',
+    gradientDisabled: 'linear-gradient(to right, #F0B8D8, #E68BBE)',
+    logo: '/icons/duck-pink.svg',
   },
-  sage: {
-    name: 'Sage',
-    background: '#F0F7EE',
-    primary: '#152415',
-    secondary: '#7AAA72',
-    accent: '#3A8A2C',
-    surface: '#E4F0E0',
-    logo: '/svg/duckbin-greeny.svg',
+
+  // ── Forest ────────────────────────────────────────────────────────────────
+  forest: {
+    name: 'Forest',
+    background: '#22311D',
+    primary: '#4A6741',
+    secondary: '#3A5232',
+    accent: '#5BAD6F',
+    surface: '#2E4228',
+    surfaceSecondary: '#3A5232',
+    gradientEnabled: 'linear-gradient(to right, #5BAD6F, #2E4228)',
+    gradientDisabled: 'linear-gradient(to right, #2E4228, #4A6741)',
+    logo: '/icons/duck-forest.svg',
   },
-  slate: {
-    name: 'Slate',
-    background: '#EDF0F4',
-    primary: '#1C2030',
-    secondary: '#8898B0',
-    accent: '#3460C8',
-    surface: '#E2E6ED',
-    logo: '/svg/duckbin-lightShade.svg',
+
+  // ── Honey ─────────────────────────────────────────────────────────────────
+  honey: {
+    name: 'Honey',
+    background: '#DF6206',
+    primary: '#F6C25C',
+    secondary: '#C8832A',
+    accent: '#F6C25C',
+    surface: '#C85A05',
+    surfaceSecondary: '#C8832A',
+    gradientEnabled: 'linear-gradient(to right, #F6C25C, #C85A05)',
+    gradientDisabled: 'linear-gradient(to right, #C85A05, #F6C25C)',
+    logo: '/icons/duck-honey.svg',
   },
+
 }
 
-// Keep a "dark" alias so existing localStorage values still resolve
-Object.defineProperty(themes, 'dark', { get: () => themes.obsidian, enumerable: false })
-Object.defineProperty(themes, 'midnight', { get: () => themes.abyss, enumerable: false })
-Object.defineProperty(themes, 'wine', { get: () => themes.merlot, enumerable: false })
-Object.defineProperty(themes, 'forest', { get: () => themes.moss, enumerable: false })
-Object.defineProperty(themes, 'coffee', { get: () => themes.ember, enumerable: false })
-Object.defineProperty(themes, 'light', { get: () => themes.chalk, enumerable: false })
-Object.defineProperty(themes, 'pinky', { get: () => themes.petal, enumerable: false })
-Object.defineProperty(themes, 'greeny', { get: () => themes.sage, enumerable: false })
-Object.defineProperty(themes, 'lightShade', { get: () => themes.slate, enumerable: false })
-Object.defineProperty(themes, 'spruce', { get: () => themes.abyss, enumerable: false })
+// Legacy aliases — old localStorage values fall back gracefully
+Object.defineProperty(themes, 'obsidian',   { get: () => themes.dark,   enumerable: false })
+Object.defineProperty(themes, 'carbon',     { get: () => themes.dark,   enumerable: false })
+Object.defineProperty(themes, 'abyss',      { get: () => themes.dark,   enumerable: false })
+Object.defineProperty(themes, 'midnight',   { get: () => themes.dark,   enumerable: false })
+Object.defineProperty(themes, 'merlot',     { get: () => themes.wine,   enumerable: false })
+Object.defineProperty(themes, 'ember',      { get: () => themes.coffee, enumerable: false })
+Object.defineProperty(themes, 'chalk',      { get: () => themes.light,  enumerable: false })
+Object.defineProperty(themes, 'petal',      { get: () => themes.pink,   enumerable: false })
+Object.defineProperty(themes, 'pinky',      { get: () => themes.pink,   enumerable: false })
+Object.defineProperty(themes, 'moss',       { get: () => themes.forest, enumerable: false })
+Object.defineProperty(themes, 'sage',       { get: () => themes.forest, enumerable: false })
+Object.defineProperty(themes, 'greeny',     { get: () => themes.forest, enumerable: false })
+Object.defineProperty(themes, 'slate',      { get: () => themes.light,  enumerable: false })
+Object.defineProperty(themes, 'lightShade', { get: () => themes.light,  enumerable: false })
+Object.defineProperty(themes, 'spruce',     { get: () => themes.dark,   enumerable: false })
 
 export function getTheme(name: string): Theme {
-  return themes[name] ?? themes.obsidian
+  return themes[name] ?? themes.dark
 }
 
 export function getThemeNames(): string[] {

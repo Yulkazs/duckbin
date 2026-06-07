@@ -92,24 +92,26 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
+      {/* Pill-style button matching the screenshot */}
       <button
         onClick={handleDropdownToggle}
         disabled={disabled}
-        className={`flex items-center gap-1 px-3 py-2 rounded-md transition-all duration-200 w-full sm:w-auto sm:min-w-[140px] ${
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
           disabled 
             ? 'cursor-not-allowed opacity-60' 
-            : 'hover:bg-opacity-10 cursor-pointer'
+            : 'cursor-pointer'
         }`}
         style={{
-          color: theme.primary,
-          backgroundColor: isOpen ? `${theme.primary}10` : 'transparent',
+          color: '#FFFFFF',
+          backgroundColor: '#3A3D4A',
+          border: 'none',
         }}
         onKeyDown={handleKeyDown}
       >
-        <span className="text-m font-medium">{currentLanguage.name}</span>
+        <span>{currentLanguage.name}</span>
         {!disabled && (
           <ChevronDown 
-            size={20} 
+            size={16} 
             className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
           />
         )}

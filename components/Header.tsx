@@ -7,7 +7,7 @@ import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { ThemeDropdown } from '@/components/selectors/Theme';
 import { LanguageDropdown } from '@/components/selectors/Language';
 import { getDefaultLanguage, type Language } from '@/utils/languages';
-import { Github } from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
 
 interface HeaderProps {
   onLanguageChange?: (language: Language) => void;
@@ -47,7 +47,6 @@ export const Header: React.FC<HeaderProps> = ({
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  // Use selected theme if provided, otherwise use current theme
   const displayTheme = selectedTheme || currentTheme;
 
   return (
@@ -61,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Desktop and Tablet Layout */}
         <div className="flex items-center justify-between h-16">
-          {/* Logo and Title - Now clickable */}
+          {/* Logo and Title */}
           <Link href="/" className="flex items-center gap-3 sm:gap-4 hover:opacity-80 transition-opacity">
             <img
               src={theme.logo}
@@ -79,10 +78,10 @@ export const Header: React.FC<HeaderProps> = ({
             </h1>
           </Link>
 
-          {/* Desktop Controls and GitHub Link */}
+          {/* Desktop Controls */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Language Selector */}
-            <div className="flex items-center gap-2">
+            {/* Language Selector — styled as pill button matching screenshot */}
+            <div className="flex items-center">
               <LanguageDropdown 
                 value={selectedLanguage}
                 onChange={handleLanguageChange}
@@ -92,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* Theme Selector */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center">
               <ThemeDropdown 
                 onThemeChange={handleThemeChange}
                 selectedTheme={displayTheme}
@@ -101,15 +100,14 @@ export const Header: React.FC<HeaderProps> = ({
               />
             </div>
 
-            {/* GitHub Link */}
+            {/* How it works */}
             <a 
-              href="https://github.com/Yulkazs/duckbin"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm font-medium"
+              href="#"
+              className="flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-md transition-opacity hover:opacity-70"
               style={{ color: theme.primary }}
             >
-              <Github size={24} />
+              <HelpCircle size={18} />
+              <span>How it works</span>
             </a>
           </div>
 
@@ -121,13 +119,11 @@ export const Header: React.FC<HeaderProps> = ({
             style={{ color: theme.primary }}
           >
             <div className="relative w-6 h-6">
-              {/* Top line */}
               <span
                 className={`absolute top-1/2 left-0 w-full h-[2px] bg-current transform transition duration-300 ease-in-out origin-center ${
                   isMobileMenuOpen ? 'rotate-45' : '-translate-y-1.5'
                 }`}
               />
-              {/* Bottom line */}
               <span
                 className={`absolute top-1/2 left-0 w-full h-[2px] bg-current transform transition duration-300 ease-in-out origin-center ${
                   isMobileMenuOpen ? '-rotate-45' : 'translate-y-1.5'
@@ -137,12 +133,11 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Mobile Menu (collapsible) */}
+        {/* Mobile Menu */}
         <div className={`md:hidden transition-all duration-300 ease-in-out ${
             isMobileMenuOpen ? 'opacity-100 py-4' : 'opacity-0 h-0'
             }`} style={{ overflow: isMobileMenuOpen ? 'visible' : 'hidden' }}>
           <div className="py-4 space-y-4 border-t" style={{ borderColor: theme.primary }}>
-            {/* Language Selector */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="w-full sm:w-auto">
                 <LanguageDropdown 
@@ -154,7 +149,6 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Theme Selector */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="w-full sm:w-auto">
                 <ThemeDropdown 

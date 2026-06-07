@@ -6,7 +6,7 @@ import { useThemeContext } from '@/components/ui/ThemeProvider';
 import { getSyntaxColors, createMonacoTheme } from '@/utils/syntax-colors';
 import { createSnippet, forkSnippet, validateSnippet } from '@/lib/snippets';
 import { getLanguageById, languages } from '@/utils/languages';
-import { Save, Loader2, Check, X, Download, Copy, AlertCircle, GitBranch } from 'lucide-react';
+import { Loader2, Check, X, AlertCircle, GitBranch, Github } from 'lucide-react';
 import { ImportGithub } from '@/components/selectors/ImportGithub';
 import { SimpleToast } from '@/components/ui/Toast';
 import { Loading } from '@/components/ui/Loading';
@@ -35,16 +35,13 @@ interface CodeEditorProps {
   onSave?: (savedSnippet: any) => void;
   showSaveButton?: boolean;
   onLanguageChange?: (language: string) => void;
-  // New props for fork behavior
   existingSlug?: string;
   isEditing?: boolean;
   originalSnippet?: any;
-  // Current state from parent (for editing existing snippets)
   currentTitle?: string;
   currentCode?: string;
   currentLanguage?: string;
   currentTheme?: string;
-  // New responsive props
   minHeight?: string;
   maxHeight?: string;
   autoResize?: boolean;
@@ -83,7 +80,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const placeholderRef = useRef<HTMLDivElement>(null);
   const { theme, currentTheme } = useThemeContext();
   const router = useRouter();
-  
+
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [monacoLoaded, setMonacoLoaded] = useState(false);
   const [monaco, setMonaco] = useState<MonacoEditor | null>(null);
@@ -91,18 +88,15 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [localTitle, setLocalTitle] = useState(title);
   const [isMobile, setIsMobile] = useState(false);
   const [containerHeight, setContainerHeight] = useState<string>(height);
-  
-  // Save functionality states
+
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Import functionality states
   const [showImportModal, setShowImportModal] = useState(false);
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importError, setImportError] = useState<string | null>(null);
 
-  // Track if content has been modified
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [initialContent, setInitialContent] = useState({
     title: title,
@@ -115,93 +109,64 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     message: string;
     type: 'success' | 'error' | 'info' | 'warning';
     visible: boolean;
-  }>({
-    message: '',
-    type: 'success',
-    visible: false
-  });
+  }>({ message: '', type: 'success', visible: false });
 
-  // Calculate stats
   const characterCount = value.length;
   const lineCount = value.split('\n').length;
-  const displayLanguage = language.charAt(0).toUpperCase() + language.slice(1);
+  const displayLanguage = getLanguageById(language)?.name ?? (language.charAt(0).toUpperCase() + language.slice(1));
 
-  // Responsive height calculation
   const calculateResponsiveHeight = useCallback(() => {
     if (fillContainer && wrapperRef.current) {
       const wrapper = wrapperRef.current;
       const rect = wrapper.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
-      const availableHeight = viewportHeight - rect.top - 20; // 20px buffer
-      
+      const availableHeight = viewportHeight - rect.top - 20;
       const minHeightPx = parseInt(minHeight);
-      const maxHeightPx = maxHeight.includes('vh') 
+      const maxHeightPx = maxHeight.includes('vh')
         ? (parseInt(maxHeight) / 100) * viewportHeight
         : parseInt(maxHeight);
-      
-      const calculatedHeight = Math.max(minHeightPx, Math.min(maxHeightPx, availableHeight));
-      return `${calculatedHeight}px`;
+      return `${Math.max(minHeightPx, Math.min(maxHeightPx, availableHeight))}px`;
     }
-    
     if (autoResize && value) {
       const lines = value.split('\n').length;
       const lineHeight = isMobile ? 18 : 20;
-      const titleBarHeight = isMobile ? 44 : 36;
       const statusBarHeight = isMobile ? 44 : 28;
       const padding = 20;
-      
-      const contentHeight = lines * lineHeight + titleBarHeight + statusBarHeight + padding;
+      const contentHeight = lines * lineHeight + statusBarHeight + padding;
       const minHeightPx = parseInt(minHeight);
-      const maxHeightPx = maxHeight.includes('vh') 
+      const maxHeightPx = maxHeight.includes('vh')
         ? (parseInt(maxHeight) / 100) * window.innerHeight
         : parseInt(maxHeight);
-      
-      const calculatedHeight = Math.max(minHeightPx, Math.min(maxHeightPx, contentHeight));
-      return `${calculatedHeight}px`;
+      return `${Math.max(minHeightPx, Math.min(maxHeightPx, contentHeight))}px`;
     }
-    
     return height;
   }, [fillContainer, autoResize, value, minHeight, maxHeight, height, isMobile]);
 
-  // Update container height when dependencies change
   useEffect(() => {
     const newHeight = calculateResponsiveHeight();
-    if (newHeight !== containerHeight) {
-      setContainerHeight(newHeight);
-    }
+    if (newHeight !== containerHeight) setContainerHeight(newHeight);
   }, [calculateResponsiveHeight, containerHeight]);
 
-  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      const newIsMobile = window.innerWidth < 1024;
-      setIsMobile(newIsMobile);
-      
-      if (fillContainer || autoResize) {
-        const newHeight = calculateResponsiveHeight();
-        setContainerHeight(newHeight);
-      }
+      setIsMobile(window.innerWidth < 1024);
+      if (fillContainer || autoResize) setContainerHeight(calculateResponsiveHeight());
     };
-    
-    handleResize(); // Initial call
+    handleResize();
     window.addEventListener('resize', handleResize);
-    
     return () => window.removeEventListener('resize', handleResize);
   }, [fillContainer, autoResize, calculateResponsiveHeight]);
 
-  // Check if content has been modified from original
   useEffect(() => {
     if (isEditing && originalSnippet) {
-      const contentChanged = 
+      setHasUnsavedChanges(
         localTitle.trim() !== originalSnippet.title ||
         value !== originalSnippet.code ||
         language !== originalSnippet.language ||
-        currentTheme !== originalSnippet.theme;
-      
-      setHasUnsavedChanges(contentChanged);
+        currentTheme !== originalSnippet.theme
+      );
     } else {
-      const hasContent = Boolean(localTitle.trim() || value.trim());
-      setHasUnsavedChanges(hasContent);
+      setHasUnsavedChanges(Boolean(localTitle.trim() || value.trim()));
     }
   }, [localTitle, value, language, currentTheme, isEditing, originalSnippet]);
 
@@ -209,107 +174,54 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     if (newTitle.length <= 100) {
       const capitalizedTitle = newTitle.charAt(0).toUpperCase() + newTitle.slice(1);
       setLocalTitle(capitalizedTitle);
-      if (onTitleChange) {
-        onTitleChange(capitalizedTitle);
-      }
+      onTitleChange?.(capitalizedTitle);
     }
   };
 
-  // Show toast notification
   const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
-    setToast({
-      message,
-      type,
-      visible: true
-    });
-
-    setTimeout(() => {
-      setToast(prev => ({ ...prev, visible: false }));
-    }, 3000);
+    setToast({ message, type, visible: true });
+    setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
   };
 
-  // Copy to clipboard function
   const copyToClipboard = async (text: string): Promise<boolean> => {
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
         return true;
-      } else {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.opacity = '0';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        
-        const success = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        return success;
       }
-    } catch (error) {
-      console.error('Failed to copy to clipboard:', error);
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return success;
+    } catch {
       return false;
     }
   };
 
-  // Detect language from file extension
-  const detectLanguageFromFilename = (filename: string): string => {
-    const extension = filename.split('.').pop()?.toLowerCase() || '';
-    
-    const detectedLanguage = languages.find(lang => 
-      lang.extension === extension || 
-      (lang.id === 'typescript' && (extension === 'tsx' || extension === 'ts')) ||
-      (lang.id === 'javascript' && (extension === 'jsx' || extension === 'js' || extension === 'mjs')) ||
-      (lang.id === 'python' && (extension === 'py' || extension === 'pyw')) ||
-      (lang.id === 'markdown' && (extension === 'md' || extension === 'markdown')) ||
-      (lang.id === 'yaml' && (extension === 'yaml' || extension === 'yml')) ||
-      (lang.id === 'dockerfile' && (extension === 'dockerfile' || filename.toLowerCase() === 'dockerfile'))
-    );
-
-    return detectedLanguage?.id || 'plaintext';
-  };
-
-  // Handle import from GitHub component
   const handleGitHubImport = (content: string, filename: string, detectedLanguage: string) => {
     try {
       onChange(content);
-      
-      if (onLanguageChange) {
-        onLanguageChange(detectedLanguage);
-      }
-
-      if (!localTitle.trim() || localTitle === 'Untitled Snippet') {
-        handleTitleChange(filename);
-      }
-
+      if (onLanguageChange) onLanguageChange(detectedLanguage);
+      if (!localTitle.trim() || localTitle === 'Untitled Snippet') handleTitleChange(filename);
       setImportStatus('success');
       showToast(`File "${filename}" imported successfully!`, 'success');
-
-      setTimeout(() => {
-        setImportStatus('idle');
-      }, 2000);
-
+      setTimeout(() => setImportStatus('idle'), 2000);
     } catch (error) {
-      console.error('Error handling GitHub import:', error);
       setImportStatus('error');
       setImportError(error instanceof Error ? error.message : 'Failed to import file');
       showToast('Failed to import file', 'error');
-      
-      setTimeout(() => {
-        setImportStatus('idle');
-        setImportError(null);
-      }, 3000);
+      setTimeout(() => { setImportStatus('idle'); setImportError(null); }, 3000);
     }
   };
 
-  // Save snippet function with automatic navigation
   const handleSave = async () => {
-    if (isSaving) {
-      console.log('Save already in progress, ignoring duplicate call');
-      return;
-    }
-
+    if (isSaving) return;
     try {
       setIsSaving(true);
       setSaveError(null);
@@ -323,66 +235,39 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       };
 
       const errors = validateSnippet(snippetData);
-      if (errors.length > 0) {
-        throw new Error(errors.join(', '));
-      }
+      if (errors.length > 0) throw new Error(errors.join(', '));
 
       let response;
       let actionMessage = '';
 
       if (isEditing && existingSlug && hasUnsavedChanges) {
         response = await forkSnippet(existingSlug, snippetData);
-
         actionMessage = 'Forked and saved';
       } else {
         response = await createSnippet(snippetData);
-
         actionMessage = 'Saved';
       }
-      
+
       setSaveStatus('success');
-      
       if (response.url) {
         const copySuccess = await copyToClipboard(response.url);
-        if (copySuccess) {
-          showToast(`${actionMessage}! URL copied to clipboard`, 'success');
-        } else {
-          showToast(`${actionMessage}! URL: ${response.url}`, 'info');
-        }
-      }
-      
-      if (onSave) {
-        onSave(response);
+        showToast(copySuccess ? `${actionMessage}! URL copied to clipboard` : `${actionMessage}! URL: ${response.url}`, copySuccess ? 'success' : 'info');
       }
 
+      onSave?.(response);
+
       if (!isEditing && response.snippet?.slug) {
-        setTimeout(() => {
-          router.push(`/${response.snippet.slug}`);
-        }, 1000);
+        setTimeout(() => router.push(`/${response.snippet.slug}`), 1000);
       }
 
       setHasUnsavedChanges(false);
-      setInitialContent({
-        title: snippetData.title,
-        code: snippetData.code,
-        language: snippetData.language,
-        theme: snippetData.theme
-      });
-
-      setTimeout(() => {
-        setSaveStatus('idle');
-      }, 2000);
-
+      setInitialContent({ title: snippetData.title, code: snippetData.code, language: snippetData.language, theme: snippetData.theme });
+      setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
-      console.error('Error saving snippet:', error);
       setSaveStatus('error');
       setSaveError(error instanceof Error ? error.message : 'Failed to save snippet');
       showToast('Failed to save snippet', 'error');
-      
-      setTimeout(() => {
-        setSaveStatus('idle');
-        setSaveError(null);
-      }, 3000);
+      setTimeout(() => { setSaveStatus('idle'); setSaveError(null); }, 3000);
     } finally {
       setIsSaving(false);
     }
@@ -390,136 +275,79 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
   const updatePlaceholderVisibility = () => {
     if (!placeholderRef.current) return;
-    
-    const shouldShowPlaceholder = !value && placeholder;
-    placeholderRef.current.style.display = shouldShowPlaceholder ? 'block' : 'none';
+    placeholderRef.current.style.display = (!value && placeholder) ? 'block' : 'none';
   };
 
+  // Load Monaco
   useEffect(() => {
-    const loadMonaco = async () => {
-      if (typeof window === 'undefined') return;
-
-      try {
-        (window as any).MonacoEnvironment = {
-          getWorkerUrl: () => {
-            return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
-              self.MonacoEnvironment = {
-                baseUrl: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/'
-              };
-              importScripts('https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/base/worker/workerMain.js');
-            `)}`;
-          }
-        };
-
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.js';
-        script.onload = () => {
-          const loader = (window as any).require;
-          loader.config({ 
-            paths: { 
-              vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' 
-            } 
-          });
-          
-          loader(['vs/editor/editor.main'], (monacoInstance: MonacoEditor) => {
-            setMonaco(monacoInstance);
-            setMonacoLoaded(true);
-          });
-        };
-        script.onerror = () => {
-          setLoadError('Failed to load Monaco Editor');
-        };
-        document.head.appendChild(script);
-      } catch (error) {
-        console.error('Failed to load Monaco Editor:', error);
-        setLoadError('Failed to load Monaco Editor');
-      }
-    };
-
-    loadMonaco();
+    if (typeof window === 'undefined') return;
+    try {
+      (window as any).MonacoEnvironment = {
+        getWorkerUrl: () => `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+          self.MonacoEnvironment = { baseUrl: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/' };
+          importScripts('https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/base/worker/workerMain.js');
+        `)}`
+      };
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.js';
+      script.onload = () => {
+        const loader = (window as any).require;
+        loader.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+        loader(['vs/editor/editor.main'], (monacoInstance: MonacoEditor) => {
+          setMonaco(monacoInstance);
+          setMonacoLoaded(true);
+        });
+      };
+      script.onerror = () => setLoadError('Failed to load Monaco Editor');
+      document.head.appendChild(script);
+    } catch {
+      setLoadError('Failed to load Monaco Editor');
+    }
   }, []);
 
-  // Initialize Monaco Editor
+  // Init Monaco editor
   useEffect(() => {
     if (!monacoLoaded || !containerRef.current || !monaco) return;
 
     const initEditor = async () => {
       try {
-        if (containerRef.current) {
-          containerRef.current.innerHTML = '';
-        }
+        if (containerRef.current) containerRef.current.innerHTML = '';
 
         const syntaxColors = getSyntaxColors(currentTheme);
         const themeConfig = createMonacoTheme(currentTheme, syntaxColors);
+
+        // ── Key fix: override the editor background to match the theme ──
+        themeConfig.colors['editor.background'] = theme.background;
+        themeConfig.colors['editorGutter.background'] = theme.background;
+
         const themeName = `duckbin-${currentTheme}`;
-        
         monaco.editor.defineTheme(themeName, themeConfig);
 
-        // Responsive Monaco options
         const responsiveOptions = isMobile ? {
-          fontSize: 12,
-          lineHeight: 18,
-          scrollbar: {
-            vertical: 'auto',
-            horizontal: 'auto',
-            useShadows: false,
-            verticalScrollbarSize: 14,
-            horizontalScrollbarSize: 14,
-          },
-          minimap: { enabled: false },
-          wordWrap: 'on',
-          wrappingIndent: 'indent',
-          scrollBeyondLastLine: false,
-          overviewRulerLanes: 0,
-          hideCursorInOverviewRuler: true,
-          overviewRulerBorder: false,
-          lineNumbers: 'on',
-          lineNumbersMinChars: 3,
-          glyphMargin: false,
-          folding: false,
-          mouseWheelZoom: false,
-          quickSuggestions: false,
-          acceptSuggestionOnEnter: 'smart',
-          contextmenu: false,
-          links: false,
-          colorDecorators: false,
-          codeLens: false,
-          hover: {
-            enabled: false,
-          },
-          parameterHints: {
-            enabled: false,
-          },
-          suggestOnTriggerCharacters: false,
+          fontSize: 12, lineHeight: 18,
+          scrollbar: { vertical: 'auto', horizontal: 'auto', useShadows: false, verticalScrollbarSize: 14, horizontalScrollbarSize: 14 },
+          minimap: { enabled: false }, wordWrap: 'on', wrappingIndent: 'indent',
+          scrollBeyondLastLine: false, overviewRulerLanes: 0, hideCursorInOverviewRuler: true,
+          overviewRulerBorder: false, lineNumbers: 'on', lineNumbersMinChars: 3,
+          glyphMargin: false, folding: false, mouseWheelZoom: false, quickSuggestions: false,
+          acceptSuggestionOnEnter: 'smart', contextmenu: false, links: false,
+          colorDecorators: false, codeLens: false,
+          hover: { enabled: false }, parameterHints: { enabled: false }, suggestOnTriggerCharacters: false,
         } : {
           fontSize: 14,
           minimap: { enabled: false },
-          scrollbar: {
-            vertical: 'auto',
-            horizontal: 'auto',
-            useShadows: false,
-            verticalScrollbarSize: 10,
-            horizontalScrollbarSize: 10,
-          },
-          suggestOnTriggerCharacters: true,
-          acceptSuggestionOnEnter: 'on',
-          acceptSuggestionOnCommitCharacter: true,
-          quickSuggestions: true,
-          parameterHints: {
-            enabled: true,
-          },
-          hover: {
-            enabled: true,
-          },
-          contextmenu: true,
-          mouseWheelZoom: true,
+          scrollbar: { vertical: 'auto', horizontal: 'auto', useShadows: false, verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
+          suggestOnTriggerCharacters: true, acceptSuggestionOnEnter: 'on',
+          acceptSuggestionOnCommitCharacter: true, quickSuggestions: true,
+          parameterHints: { enabled: true }, hover: { enabled: true },
+          contextmenu: true, mouseWheelZoom: true,
         };
 
         editorRef.current = monaco.editor.create(containerRef.current!, {
-          value: value,
-          language: language,
+          value,
+          language,
           theme: themeName,
-          readOnly: readOnly,
+          readOnly,
           lineNumbers: 'on',
           roundedSelection: false,
           scrollBeyondLastLine: false,
@@ -533,256 +361,90 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           showFoldingControls: isMobile ? 'never' : 'always',
           cursorBlinking: 'blink',
           smoothScrolling: true,
-          bracketPairColorization: {
-            enabled: true,
-          },
+          bracketPairColorization: { enabled: true },
           guides: {
-            bracketPairs: !isMobile,
-            bracketPairsHorizontal: !isMobile,
-            highlightActiveBracketPair: true,
-            indentation: !isMobile,
+            bracketPairs: !isMobile, bracketPairsHorizontal: !isMobile,
+            highlightActiveBracketPair: true, indentation: !isMobile,
           },
           ...responsiveOptions
         });
 
         editorRef.current.onDidChangeModelContent(() => {
-          if (editorRef.current) {
-            const newValue = editorRef.current.getValue() || '';
-            onChange(newValue);
-          }
+          if (editorRef.current) onChange(editorRef.current.getValue() || '');
         });
-
-        editorRef.current.onDidFocusEditorText(() => {
-          updatePlaceholderVisibility();
-        });
+        editorRef.current.onDidFocusEditorText(() => updatePlaceholderVisibility());
 
         setIsEditorReady(true);
-      } catch (error) {
-        console.error('Failed to initialize Monaco Editor:', error);
+      } catch {
         setLoadError('Failed to initialize Monaco Editor');
       }
     };
 
     initEditor();
-
     return () => {
-      if (editorRef.current) {
-        editorRef.current.dispose();
-        editorRef.current = null;
-      }
+      if (editorRef.current) { editorRef.current.dispose(); editorRef.current = null; }
     };
   }, [monacoLoaded, monaco, isMobile]);
 
+  // Update theme — also override background each time
   useEffect(() => {
     if (!isEditorReady || !editorRef.current || !monaco) return;
-
     try {
       const syntaxColors = getSyntaxColors(currentTheme);
       const themeConfig = createMonacoTheme(currentTheme, syntaxColors);
+      themeConfig.colors['editor.background'] = theme.background;
+      themeConfig.colors['editorGutter.background'] = theme.background;
       const themeName = `duckbin-${currentTheme}`;
-      
       monaco.editor.defineTheme(themeName, themeConfig);
       monaco.editor.setTheme(themeName);
-    } catch (error) {
-      console.error('Failed to update theme:', error);
-    }
-  }, [currentTheme, isEditorReady, monaco]);
+    } catch {}
+  }, [currentTheme, theme.background, isEditorReady, monaco]);
 
   useEffect(() => {
     if (!isEditorReady || !editorRef.current || !monaco) return;
-
     try {
       const model = editorRef.current.getModel();
-      if (model) {
-        monaco.editor.setModelLanguage(model, language);
-      }
-    } catch (error) {
-      console.error('Failed to update language:', error);
-    }
+      if (model) monaco.editor.setModelLanguage(model, language);
+    } catch {}
   }, [language, isEditorReady, monaco]);
 
   useEffect(() => {
     if (!isEditorReady || !editorRef.current) return;
-
     try {
       const currentValue = editorRef.current.getValue();
-      if (currentValue !== value) {
-        editorRef.current.setValue(value);
-      }
-    } catch (error) {
-      console.error('Failed to update value:', error);
-    }
+      if (currentValue !== value) editorRef.current.setValue(value);
+    } catch {}
   }, [value, isEditorReady]);
 
-  useEffect(() => {
-    updatePlaceholderVisibility();
-  }, [value, placeholder]);
-
-  useEffect(() => {
-    setLocalTitle(title);
-  }, [title]);
-
-  // Render import button
-  const renderImportButton = () => {
-    if (readOnly) return null;
-
-    return (
-      <button
-        onClick={() => setShowImportModal(true)}
-        className={`flex items-center gap-2 rounded text-sm font-medium transition-all duration-200 ${
-          isMobile ? 'px-2 py-1' : 'px-3 py-1 mr-2'
-        }`}
-        style={{
-          backgroundColor: importStatus === 'success' ? '#10b981' : importStatus === 'error' ? '#ef4444' : theme.primary + '20',
-          color: importStatus === 'success' || importStatus === 'error' ? theme.background : theme.primary,
-          border: `1px solid ${theme.primary}40`,
-        }}
-        title="Import file from GitHub"
-      >
-        {importStatus === 'success' ? (
-          <>
-            <Check size={isMobile ? 12 : 14} />
-            {!isMobile && <span>Imported!</span>}
-          </>
-        ) : importStatus === 'error' ? (
-          <>
-            <X size={isMobile ? 12 : 14} />
-            {!isMobile && <span>Error</span>}
-          </>
-        ) : (
-          <>
-            <Download size={isMobile ? 12 : 14} />
-            {!isMobile && <span>Import</span>}
-          </>
-        )}
-      </button>
-    );
-  };
+  useEffect(() => { updatePlaceholderVisibility(); }, [value, placeholder]);
+  useEffect(() => { setLocalTitle(title); }, [title]);
 
   useEffect(() => {
     if (!isEditorReady || !editorRef.current) return;
-
-    try {
-      editorRef.current.updateOptions({
-        readOnly: readOnly
-      });
-    } catch (error) {
-      console.error('Failed to update readOnly option:', error);
-    }
+    try { editorRef.current.updateOptions({ readOnly }); } catch {}
   }, [readOnly, isEditorReady]);
 
-  // Render save button with fork indication
-  const renderSaveButton = () => {
-    if (!showSaveButton) return null;
-
-    const getSaveButtonText = () => {
-      if (isSaving) return !isMobile ? 'Saving...' : '';
-      if (saveStatus === 'success') return !isMobile ? 'Saved!' : '';
-      if (saveStatus === 'error') return !isMobile ? 'Error' : '';
-      
-      if (isEditing && hasUnsavedChanges) {
-        return !isMobile ? 'Fork & Save' : '';
-      }
-      return !isMobile ? 'Save' : '';
-    };
-
-    const getSaveIcon = () => {
-      if (isSaving) return <Loader2 size={isMobile ? 12 : 14} className="animate-spin" />;
-      if (saveStatus === 'success') return <Check size={isMobile ? 12 : 14} />;
-      if (saveStatus === 'error') return <X size={isMobile ? 12 : 14} />;
-      
-      if (isEditing && hasUnsavedChanges) {
-        return <GitBranch size={isMobile ? 12 : 14} />;
-      }
-      return <Save size={isMobile ? 12 : 14} />;
-    };
-
-    const isDisabled = isSaving || !value.trim();
-
-    return (
-      <button
-        onClick={handleSave}
-        disabled={isDisabled}
-        className={`flex items-center gap-2 rounded text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-          isMobile ? 'px-2 py-1 ml-1' : 'px-3 py-1'
-        }`}
-        style={{
-          backgroundColor: saveStatus === 'success' ? '#10b981' : saveStatus === 'error' ? '#ef4444' : theme.primary,
-          color: theme.background,
-        }}
-        title={isEditing && hasUnsavedChanges ? 'This will create a new snippet (fork)' : 'Save snippet'}
-      >
-        {getSaveIcon()}
-        {getSaveButtonText() && <span>{getSaveButtonText()}</span>}
-      </button>
-    );
-  };
-
-  // Toast notification
-  const renderToast = () => {
-    if (!toast.visible) return null;
-
-    const toastColors = {
-      success: { bg: '#10b981', icon: <Check size={16} /> },
-      error: { bg: '#ef4444', icon: <X size={16} /> },
-      info: { bg: theme.primary, icon: <Copy size={16} /> },
-      warning: { bg: '#f59e0b', icon: <AlertCircle size={16} /> }
-    };
-
-    const colors = toastColors[toast.type];
-
-    return (
-      <div
-        className={`fixed z-50 flex items-center gap-2 rounded-lg shadow-lg text-white text-sm font-medium transition-all duration-300 ${
-          isMobile 
-            ? 'top-2 left-2 right-2 px-3 py-2' 
-            : 'top-4 right-4 px-4 py-3'
-        } ${
-          toast.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
-        }`}
-        style={{ backgroundColor: colors.bg }}
-      >
-        {colors.icon}
-        <span className={isMobile ? 'text-xs' : ''}>{toast.message}</span>
-      </div>
-    );
-  };
+  // ── Render ────────────────────────────────────────────────────────────────
 
   if (loadError) {
     return (
       <div className={`space-y-2 ${className}`} ref={wrapperRef}>
-        <div 
-          className="border-b rounded-lg overflow-hidden flex items-center justify-center"
-          style={{ 
-            height: containerHeight,
-            borderColor: theme.primary + '40',
-            backgroundColor: theme.background,
-            color: theme.primary
-          }}
-        >
+        <div className="border-b rounded-lg overflow-hidden flex items-center justify-center"
+          style={{ height: containerHeight, borderColor: theme.primary + '40', backgroundColor: theme.background, color: theme.primary }}>
           <div className="text-center px-4">
-            <div className="text-red-500 mb-2">⚠️</div>
-            <p className={`text-red-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>{loadError}</p>
-            <p className={`opacity-60 mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}>Please check your internet connection</p>
+            <p className="text-red-500 text-sm">{loadError}</p>
+            <p className="opacity-60 mt-1 text-xs">Please check your internet connection</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // Show loading state with your custom Loading component
   if (!monacoLoaded) {
     return (
       <div className={`space-y-2 ${className}`} ref={wrapperRef}>
-        <div 
-          className="border rounded-lg overflow-hidden flex items-center justify-center"
-          style={{ 
-            height: containerHeight,
-            borderColor: theme.primary + '40',
-            backgroundColor: theme.background,
-            color: theme.primary
-          }}
-        >
+        <div className="border rounded-lg overflow-hidden flex items-center justify-center"
+          style={{ height: containerHeight, borderColor: theme.primary + '40', backgroundColor: theme.background, color: theme.primary }}>
           <Loading />
         </div>
       </div>
@@ -792,126 +454,108 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   return (
     <>
       <div className={`${className}`} ref={wrapperRef}>
-        <div 
+
+        {/* ── Title bar + Import button — OUTSIDE the editor, above it ── */}
+        <div
+          className="flex items-center justify-between mb-2 px-1"
+        >
+          {/* Title input */}
+          <input
+            type="text"
+            value={localTitle}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            readOnly={readOnly}
+            placeholder={readOnly ? '' : '*Your Title*'}
+            maxLength={100}
+            className="outline-none bg-transparent border-0 text-lg font-semibold flex-1"
+            style={{
+              color: theme.primary,
+              fontFamily: 'var(--font-sans)',
+              caretColor: theme.primary,
+            }}
+          />
+
+          {/* Import button — only shown when editable */}
+          {!readOnly && (
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 border"
+              style={{
+                backgroundColor: importStatus === 'success' ? '#10b981'
+                  : importStatus === 'error' ? '#ef4444'
+                  : theme.surface,
+                color: importStatus !== 'idle' ? '#fff' : theme.primary,
+                borderColor: theme.primary + '30',
+              }}
+              title="Import file from GitHub"
+            >
+              <Github size={15} />
+              <span>
+                {importStatus === 'success' ? 'Imported!' : importStatus === 'error' ? 'Error' : 'Import'}
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* ── Editor box ── */}
+        <div
           className="border rounded-lg overflow-hidden relative flex flex-col"
-          style={{ 
+          style={{
             height: containerHeight,
             borderColor: theme.primary + '40',
-            backgroundColor: theme.background
+            backgroundColor: theme.background,
           }}
         >
-          {/* Title bar - responsive */}
-          <div 
-            className={`flex items-center justify-between border-b flex-shrink-0 ${
-              isMobile ? 'px-2 py-2' : 'px-4 py-2'
-            }`}
-            style={{ 
-              borderColor: theme.primary + '20',
-              backgroundColor: theme.background,
-              height: isMobile ? '44px' : '36px'
-            }}
-          >
+          {/* Monaco container */}
+          <div ref={containerRef} className="w-full flex-1" style={{ minHeight: 0 }} />
 
-            <input
-              type="text"
-              value={localTitle}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              readOnly={readOnly}
-              placeholder={readOnly ? "" : "Your title"} 
-              maxLength={100}
-              className={`outline-none bg-transparent flex-1 border-0 ${
-                readOnly ? 'cursor-default' : ''
-              } ${
-                isMobile ? 'text-xs px-1 py-1' : 'text-sm px-2 py-1'
-              }`} 
-              style={{ 
-                color: theme.primary,
-                backgroundColor: 'transparent',
-                fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace'
-              }}
-            />
-            
-            <div className={`flex items-center ${isMobile ? 'gap-1' : ''}`}>
-              {/* Import button */}
-              {renderImportButton()}
-              
-              {/* Save button */}
-              {renderSaveButton()}
-            </div>
-          </div>
-
-          {/* Editor container */}
-          <div 
-            ref={containerRef}
-            className="w-full flex-1"
-            style={{ minHeight: 0 }}
-          />
-          
-          {/* Placeholder overlay - responsive positioning */}
+          {/* Placeholder overlay */}
           {placeholder && (
             <div
               ref={placeholderRef}
               className="absolute pointer-events-none"
               style={{
-                top: isMobile ? '64px' : '56px',
+                top: isMobile ? '20px' : '20px',
                 left: isMobile ? '20px' : '60px',
                 fontSize: isMobile ? '12px' : '14px',
                 fontFamily: 'Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
                 color: theme.primary,
                 opacity: 0.5,
-                display: !value && placeholder ? 'block' : 'none'
+                display: (!value && placeholder) ? 'block' : 'none',
               }}
             >
               {placeholder}
             </div>
           )}
 
-          {/* Bottom status bar - responsive */}
-          <div 
-            className={`flex justify-between items-center border-t flex-shrink-0 ${
-              isMobile ? 'px-2 py-1 text-xs flex-col gap-1' : 'px-4 py-1 text-xs'
-            }`}
-            style={{ 
+          {/* ── Status bar ── */}
+          <div
+            className="flex justify-between items-center border-t flex-shrink-0 px-4 py-1 text-xs"
+            style={{
               borderColor: theme.primary + '20',
               backgroundColor: theme.background,
               color: theme.primary,
               opacity: 0.8,
               height: isMobile ? 'auto' : '28px',
-              minHeight: isMobile ? '44px' : '28px'
+              minHeight: isMobile ? '44px' : '28px',
             }}
           >
-            <div className={`flex items-center gap-2 ${isMobile ? 'w-full justify-between' : ''}`}>
-              <span className={isMobile ? 'text-xs' : ''}>{createdAt}</span>
-              {isMobile && (
-                <div className="flex items-center gap-2 text-xs">
-                  <span>{displayLanguage}</span>
-                  {isEditing && hasUnsavedChanges && (
-                    <span className="text-orange-500" title="Unsaved changes - will create new snippet">
-                      ●
-                    </span>
-                  )}
-                </div>
-              )}
+            <div className="flex items-center gap-3">
+              <span>{createdAt}</span>
               {saveError && (
-                <span className="text-red-500 text-xs" title={saveError}>
-                  ⚠️ {isMobile ? 'Save error' : saveError}
-                </span>
+                <span className="text-red-500 text-xs" title={saveError}>⚠️ {isMobile ? 'Save error' : saveError}</span>
               )}
               {importError && (
-                <span className="text-red-500 text-xs" title={importError}>
-                  ⚠️ {isMobile ? 'Import error' : importError}
-                </span>
+                <span className="text-red-500 text-xs" title={importError}>⚠️ {isMobile ? 'Import error' : importError}</span>
               )}
             </div>
-            <div className={`flex items-center gap-4 ${isMobile ? 'w-full justify-between text-xs' : ''}`}>
-              {!isMobile && <span>{displayLanguage}</span>}
+            <div className="flex items-center gap-4">
+              <span>{displayLanguage}</span>
               {!isMobile && isEditing && hasUnsavedChanges && (
-                <span className="text-orange-500" title="Unsaved changes - will create new snippet">
-                  Modified ●
-                </span>
+                <span className="text-orange-500" title="Unsaved changes — will create new snippet">Modified ●</span>
               )}
-              <span className={isMobile ? 'text-xs' : ''}>{characterCount} characters</span>
-              <span className={isMobile ? 'text-xs' : ''}>{lineCount} lines</span>
+              <span>{characterCount} characters</span>
+              <span>{lineCount} lines</span>
             </div>
           </div>
         </div>
@@ -924,7 +568,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         isVisible={showImportModal}
       />
 
-      {/* Toast Notification */}
+      {/* Toast */}
       <SimpleToast
         isVisible={toast.visible}
         message={toast.message}

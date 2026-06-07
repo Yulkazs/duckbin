@@ -10,7 +10,7 @@ import { CodeEditor } from '@/components/editor/CodeEditor'
 import { createSnippet, type CreateSnippetRequest } from '@/lib/snippets'
 import { getDefaultLanguage, type Language } from '@/utils/languages'
 import {
-  Clock, Lock, Flame, ChevronDown, Eye, EyeOff,
+  Eye, EyeOff,
   Save, Loader2, Check, X,
 } from 'lucide-react'
 
@@ -21,6 +21,26 @@ const EXPIRY_OPTIONS = [
   { value: '7d',    label: '7 days' },
   { value: '30d',   label: '30 days' },
 ] as const
+
+// ── Toggle Switch ─────────────────────────────────────────────────────────────
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none"
+      style={{
+        backgroundColor: checked ? '#22c55e' : '#3f3f46',
+      }}
+    >
+      <span
+        className="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200"
+        style={{ transform: checked ? 'translateX(24px)' : 'translateX(4px)' }}
+      />
+    </button>
+  )
+}
 
 // ── Password modal ────────────────────────────────────────────────────────────
 function PasswordSetupModal({
@@ -46,12 +66,11 @@ function PasswordSetupModal({
         style={{ backgroundColor: theme.surface, borderColor: theme.secondary + '60', color: theme.primary }}
       >
         <div className="flex items-center gap-3 mb-6">
-          <Lock size={20} style={{ color: theme.accent }} />
           <h2 className="text-lg font-semibold">Set a password</h2>
         </div>
         <p className="text-sm opacity-60 mb-5">Anyone with the link will need this password to view the snippet.</p>
 
-        {['Password', 'Confirm'].map((label, i) => (
+        {(['Password', 'Confirm'] as const).map((label, i) => (
           <div className="relative mb-3" key={label}>
             <input
               type={show ? 'text' : 'password'}
@@ -95,7 +114,7 @@ function PasswordSetupModal({
   )
 }
 
-// ── Options bar ───────────────────────────────────────────────────────────────
+// ── Options bar — matches screenshot layout ───────────────────────────────────
 function OptionsBar({
   expiresIn, setExpiresIn,
   password, setPassword,
@@ -110,9 +129,18 @@ function OptionsBar({
 }) {
   const { theme } = useThemeContext()
   const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [expiryOpen, setExpiryOpen] = useState(false)
+  const passwordEnabled = Boolean(password)
 
-  const expiryLabel = EXPIRY_OPTIONS.find(o => o.value === expiresIn)?.label ?? 'Never'
+  const labelStyle = {
+    color: theme.primary,
+    fontSize: '0.875rem',
+    fontWeight: 500,
+  }
+
+  const subLabelStyle = {
+    color: theme.secondary,
+    fontSize: '0.75rem',
+  }
 
   return (
     <>
@@ -124,82 +152,62 @@ function OptionsBar({
         />
       )}
 
-      <div className="flex flex-wrap items-center gap-3 pt-3">
-        <span className="text-xs font-medium uppercase tracking-widest opacity-40" style={{ color: theme.primary }}>
-          Options
-        </span>
-
-        {/* Expiry selector */}
-        <div className="relative">
-          <button
-            onClick={() => setExpiryOpen(o => !o)}
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium border transition-colors"
-            style={{
-              borderColor: expiresIn !== 'never' ? theme.accent + '80' : theme.secondary + '40',
-              color: expiresIn !== 'never' ? theme.accent : theme.secondary,
-              backgroundColor: expiresIn !== 'never' ? theme.accent + '12' : 'transparent',
-            }}
-          >
-            <Clock size={13} />
-            Expires: {expiryLabel}
-            <ChevronDown size={12} className={expiryOpen ? 'rotate-180' : ''} style={{ transition: 'transform 0.15s' }} />
-          </button>
-          {expiryOpen && (
-            <div
-              className="absolute top-full left-0 mt-1 rounded-lg border shadow-xl z-30 min-w-[140px] py-1 overflow-hidden"
-              style={{ backgroundColor: theme.surface, borderColor: theme.secondary + '50' }}
+      <div className="flex flex-wrap items-center gap-6 pt-3">
+        {/* Expiration */}
+        <div className="flex items-center gap-2">
+          <span style={labelStyle}>Expiration:</span>
+          <div className="relative">
+            <select
+              value={expiresIn}
+              onChange={e => setExpiresIn(e.target.value)}
+              className="appearance-none rounded-lg px-3 py-1.5 pr-8 text-sm font-medium border outline-none cursor-pointer"
+              style={{
+                backgroundColor: theme.surface,
+                borderColor: theme.secondary + '50',
+                color: theme.primary,
+              }}
             >
               {EXPIRY_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => { setExpiresIn(opt.value); setExpiryOpen(false) }}
-                  className="w-full text-left px-4 py-2 text-xs transition-colors"
-                  style={{
-                    color: expiresIn === opt.value ? theme.accent : theme.primary,
-                    backgroundColor: expiresIn === opt.value ? theme.accent + '15' : 'transparent',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = theme.secondary + '20')}
-                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = expiresIn === opt.value ? theme.accent + '15' : 'transparent')}
-                >
-                  {opt.label}
-                </button>
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
-            </div>
+            </select>
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 opacity-60" style={{ color: theme.primary }}>
+              ▾
+            </span>
+          </div>
+          {expiresIn !== 'never' && (
+            <span style={subLabelStyle}>
+              Auto-delete after {EXPIRY_OPTIONS.find(o => o.value === expiresIn)?.label}
+            </span>
+          )}
+          {expiresIn === 'never' && (
+            <span style={subLabelStyle}>No expiry</span>
           )}
         </div>
 
-        {/* Password toggle */}
-        <button
-          onClick={() => password ? setPassword('') : setShowPasswordModal(true)}
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium border transition-colors"
-          style={{
-            borderColor: password ? theme.accent + '80' : theme.secondary + '40',
-            color: password ? theme.accent : theme.secondary,
-            backgroundColor: password ? theme.accent + '12' : 'transparent',
-          }}
-        >
-          <Lock size={13} />
-          {password ? (
-            <>Password set <X size={11} /></>
-          ) : (
-            'Password protect'
-          )}
-        </button>
+        {/* Password Protect */}
+        <div className="flex items-center gap-2">
+          <span style={labelStyle}>Password Protect:</span>
+          <Toggle
+            checked={passwordEnabled}
+            onChange={on => {
+              if (on) {
+                setShowPasswordModal(true)
+              } else {
+                setPassword('')
+              }
+            }}
+          />
+        </div>
 
         {/* Burn after reading */}
-        <button
-          onClick={() => setBurnAfterReading(!burnAfterReading)}
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium border transition-colors"
-          style={{
-            borderColor: burnAfterReading ? '#f9731680' : theme.secondary + '40',
-            color: burnAfterReading ? '#f97316' : theme.secondary,
-            backgroundColor: burnAfterReading ? '#f9731612' : 'transparent',
-          }}
-        >
-          <Flame size={13} />
-          Burn after reading
-          {burnAfterReading && <Check size={11} />}
-        </button>
+        <div className="flex items-center gap-2">
+          <span style={labelStyle}>Burn after reading:</span>
+          <Toggle
+            checked={burnAfterReading}
+            onChange={setBurnAfterReading}
+          />
+        </div>
       </div>
     </>
   )
@@ -215,7 +223,7 @@ export default function Page() {
   const [language, setLanguage] = useState('plaintext')
 
   // Options
-  const [expiresIn, setExpiresIn] = useState('never')
+  const [expiresIn, setExpiresIn] = useState('7d')
   const [password, setPassword] = useState('')
   const [burnAfterReading, setBurnAfterReading] = useState(false)
 
@@ -232,7 +240,7 @@ export default function Page() {
         title: title.trim() || 'Untitled Snippet',
         code,
         language,
-        theme: 'obsidian', // will be read from ThemeProvider context in a real integration
+        theme: 'obsidian',
         expiresIn: expiresIn as any,
         ...(password ? { password } : {}),
         burnAfterReading,
