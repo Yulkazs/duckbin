@@ -1,44 +1,306 @@
-"use client";
+// app/page.tsx
+'use client'
 
-import { useState } from 'react';
-import { useThemeContext } from "@/components/ui/ThemeProvider";
-import { Header } from '@/components/Header';
-import { Footer } from '@/components/Footer';
-import { CodeEditor } from '@/components/editor/CodeEditor';
-import { getDefaultLanguage, type Language } from '@/utils/languages';
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useThemeContext } from '@/components/ui/ThemeProvider'
+import { Header } from '@/components/Header'
+import { Footer } from '@/components/Footer'
+import { CodeEditor } from '@/components/editor/CodeEditor'
+import { createSnippet, type CreateSnippetRequest } from '@/lib/snippets'
+import { getDefaultLanguage, type Language } from '@/utils/languages'
+import {
+  Clock, Lock, Flame, ChevronDown, Eye, EyeOff,
+  Save, Loader2, Check, X,
+} from 'lucide-react'
 
+const EXPIRY_OPTIONS = [
+  { value: 'never', label: 'Never' },
+  { value: '1h',    label: '1 hour' },
+  { value: '1d',    label: '1 day' },
+  { value: '7d',    label: '7 days' },
+  { value: '30d',   label: '30 days' },
+] as const
 
-export default function Page() {
-  const { theme } = useThemeContext();
-  const [selectedLanguage, setSelectedLanguage] = useState('plaintext');
-  const [code, setCode] = useState('');
+// ── Password modal ────────────────────────────────────────────────────────────
+function PasswordSetupModal({
+  onSave,
+  onCancel,
+  initialValue = '',
+}: {
+  onSave: (pw: string) => void
+  onCancel: () => void
+  initialValue?: string
+}) {
+  const { theme } = useThemeContext()
+  const [value, setValue] = useState(initialValue)
+  const [confirm, setConfirm] = useState('')
+  const [show, setShow] = useState(false)
 
-  const handleCodeChange = (newCode: string) => {
-    setCode(newCode);
-  };
-
-  const handleLanguageChange = (language: Language) => {
-    setSelectedLanguage(language.id);
-  };
+  const mismatch = confirm.length > 0 && value !== confirm
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: theme.background, color: theme.primary }}>
-      <Header 
-        onLanguageChange={handleLanguageChange}
-        selectedLanguage={selectedLanguage}
-      />
-      
-      <div className="max-w-7xl mx-auto pt-15 px-4 sm:px-6 lg:px-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div
+        className="w-full max-w-sm rounded-xl p-8 shadow-2xl border"
+        style={{ backgroundColor: theme.surface, borderColor: theme.secondary + '60', color: theme.primary }}
+      >
+        <div className="flex items-center gap-3 mb-6">
+          <Lock size={20} style={{ color: theme.accent }} />
+          <h2 className="text-lg font-semibold">Set a password</h2>
+        </div>
+        <p className="text-sm opacity-60 mb-5">Anyone with the link will need this password to view the snippet.</p>
+
+        {['Password', 'Confirm'].map((label, i) => (
+          <div className="relative mb-3" key={label}>
+            <input
+              type={show ? 'text' : 'password'}
+              placeholder={label}
+              value={i === 0 ? value : confirm}
+              onChange={e => i === 0 ? setValue(e.target.value) : setConfirm(e.target.value)}
+              className="w-full rounded-lg px-4 py-3 pr-10 text-sm outline-none border"
+              style={{
+                backgroundColor: theme.background,
+                borderColor: (i === 1 && mismatch) ? '#ef4444' : theme.secondary + '60',
+                color: theme.primary,
+              }}
+            />
+            {i === 0 && (
+              <button onClick={() => setShow(s => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-80"
+                style={{ color: theme.primary }}>
+                {show ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            )}
+          </div>
+        ))}
+        {mismatch && <p className="text-red-400 text-xs mb-3">Passwords don't match</p>}
+
+        <div className="flex gap-3 mt-5">
+          <button onClick={onCancel}
+            className="flex-1 rounded-lg py-2.5 text-sm border"
+            style={{ borderColor: theme.secondary + '60', color: theme.primary }}>
+            Cancel
+          </button>
+          <button
+            onClick={() => !mismatch && value && onSave(value)}
+            disabled={!value || mismatch}
+            className="flex-1 rounded-lg py-2.5 text-sm font-semibold disabled:opacity-40"
+            style={{ backgroundColor: theme.accent, color: '#fff' }}>
+            Set password
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Options bar ───────────────────────────────────────────────────────────────
+function OptionsBar({
+  expiresIn, setExpiresIn,
+  password, setPassword,
+  burnAfterReading, setBurnAfterReading,
+}: {
+  expiresIn: string
+  setExpiresIn: (v: string) => void
+  password: string
+  setPassword: (v: string) => void
+  burnAfterReading: boolean
+  setBurnAfterReading: (v: boolean) => void
+}) {
+  const { theme } = useThemeContext()
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [expiryOpen, setExpiryOpen] = useState(false)
+
+  const expiryLabel = EXPIRY_OPTIONS.find(o => o.value === expiresIn)?.label ?? 'Never'
+
+  return (
+    <>
+      {showPasswordModal && (
+        <PasswordSetupModal
+          initialValue={password}
+          onSave={pw => { setPassword(pw); setShowPasswordModal(false) }}
+          onCancel={() => setShowPasswordModal(false)}
+        />
+      )}
+
+      <div className="flex flex-wrap items-center gap-3 pt-3">
+        <span className="text-xs font-medium uppercase tracking-widest opacity-40" style={{ color: theme.primary }}>
+          Options
+        </span>
+
+        {/* Expiry selector */}
+        <div className="relative">
+          <button
+            onClick={() => setExpiryOpen(o => !o)}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium border transition-colors"
+            style={{
+              borderColor: expiresIn !== 'never' ? theme.accent + '80' : theme.secondary + '40',
+              color: expiresIn !== 'never' ? theme.accent : theme.secondary,
+              backgroundColor: expiresIn !== 'never' ? theme.accent + '12' : 'transparent',
+            }}
+          >
+            <Clock size={13} />
+            Expires: {expiryLabel}
+            <ChevronDown size={12} className={expiryOpen ? 'rotate-180' : ''} style={{ transition: 'transform 0.15s' }} />
+          </button>
+          {expiryOpen && (
+            <div
+              className="absolute top-full left-0 mt-1 rounded-lg border shadow-xl z-30 min-w-[140px] py-1 overflow-hidden"
+              style={{ backgroundColor: theme.surface, borderColor: theme.secondary + '50' }}
+            >
+              {EXPIRY_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setExpiresIn(opt.value); setExpiryOpen(false) }}
+                  className="w-full text-left px-4 py-2 text-xs transition-colors"
+                  style={{
+                    color: expiresIn === opt.value ? theme.accent : theme.primary,
+                    backgroundColor: expiresIn === opt.value ? theme.accent + '15' : 'transparent',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = theme.secondary + '20')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = expiresIn === opt.value ? theme.accent + '15' : 'transparent')}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Password toggle */}
+        <button
+          onClick={() => password ? setPassword('') : setShowPasswordModal(true)}
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium border transition-colors"
+          style={{
+            borderColor: password ? theme.accent + '80' : theme.secondary + '40',
+            color: password ? theme.accent : theme.secondary,
+            backgroundColor: password ? theme.accent + '12' : 'transparent',
+          }}
+        >
+          <Lock size={13} />
+          {password ? (
+            <>Password set <X size={11} /></>
+          ) : (
+            'Password protect'
+          )}
+        </button>
+
+        {/* Burn after reading */}
+        <button
+          onClick={() => setBurnAfterReading(!burnAfterReading)}
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium border transition-colors"
+          style={{
+            borderColor: burnAfterReading ? '#f9731680' : theme.secondary + '40',
+            color: burnAfterReading ? '#f97316' : theme.secondary,
+            backgroundColor: burnAfterReading ? '#f9731612' : 'transparent',
+          }}
+        >
+          <Flame size={13} />
+          Burn after reading
+          {burnAfterReading && <Check size={11} />}
+        </button>
+      </div>
+    </>
+  )
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+export default function Page() {
+  const { theme } = useThemeContext()
+  const router = useRouter()
+
+  const [code, setCode] = useState('')
+  const [title, setTitle] = useState('')
+  const [language, setLanguage] = useState('plaintext')
+
+  // Options
+  const [expiresIn, setExpiresIn] = useState('never')
+  const [password, setPassword] = useState('')
+  const [burnAfterReading, setBurnAfterReading] = useState(false)
+
+  // Save state
+  const [saving, setSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
+
+  const handleSave = async () => {
+    if (!code.trim() || saving) return
+    setSaving(true)
+    setSaveStatus('idle')
+    try {
+      const data: CreateSnippetRequest = {
+        title: title.trim() || 'Untitled Snippet',
+        code,
+        language,
+        theme: 'obsidian', // will be read from ThemeProvider context in a real integration
+        expiresIn: expiresIn as any,
+        ...(password ? { password } : {}),
+        burnAfterReading,
+      }
+      const result = await createSnippet(data)
+      setSaveStatus('success')
+      setTimeout(() => router.push(`/${result.snippet.slug}`), 600)
+    } catch {
+      setSaveStatus('error')
+      setTimeout(() => setSaveStatus('idle'), 3000)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleLanguageChange = (lang: Language) => setLanguage(lang.id)
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: theme.background, color: theme.primary }}>
+      <Header onLanguageChange={handleLanguageChange} selectedLanguage={language} />
+
+      <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-12">
         <CodeEditor
           value={code}
-          onChange={handleCodeChange}
-          language={selectedLanguage}
-          onLanguageChange={setSelectedLanguage}
-          height="600px"
+          onChange={setCode}
+          language={language}
+          onLanguageChange={setLanguage}
+          title={title}
+          onTitleChange={setTitle}
+          height="580px"
+          showSaveButton={false}
           className="w-full"
         />
+
+        {/* Options + save row */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-1 px-1">
+          <OptionsBar
+            expiresIn={expiresIn}
+            setExpiresIn={setExpiresIn}
+            password={password}
+            setPassword={setPassword}
+            burnAfterReading={burnAfterReading}
+            setBurnAfterReading={setBurnAfterReading}
+          />
+
+          <button
+            onClick={handleSave}
+            disabled={!code.trim() || saving}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 transition-all"
+            style={{
+              backgroundColor: saveStatus === 'success' ? '#10b981' : saveStatus === 'error' ? '#ef4444' : theme.accent,
+              color: '#fff',
+            }}
+          >
+            {saving ? (
+              <><Loader2 size={15} className="animate-spin" /> Saving…</>
+            ) : saveStatus === 'success' ? (
+              <><Check size={15} /> Saved!</>
+            ) : saveStatus === 'error' ? (
+              <><X size={15} /> Error</>
+            ) : (
+              <><Save size={15} /> Save snippet</>
+            )}
+          </button>
+        </div>
       </div>
+
       <Footer className="mt-10" />
     </div>
-  );
+  )
 }

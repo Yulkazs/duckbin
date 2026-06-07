@@ -1,41 +1,26 @@
-// lib/utils/slug.ts
-import CodeSnippet from '@/lib/models/CodeSnippet';
+// utils/slug.ts
 
-/**
- * Generate a random 7-character alphanumeric string
- */
+import { prisma } from '@/lib/prisma'
+
+const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+
 export function generateSlug(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
+  let result = ''
   for (let i = 0; i < 7; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += CHARS.charAt(Math.floor(Math.random() * CHARS.length))
   }
-  return result;
+  return result
 }
 
-/**
- * Generate a unique slug by checking against existing slugs in the database
- */
 export async function generateUniqueSlug(): Promise<string> {
-  let slug: string;
-  let attempts = 0;
-  const maxAttempts = 10;
-  
-  do {
-    slug = generateSlug();
-    const existing = await CodeSnippet.findOne({ slug });
-    if (!existing) {
-      return slug;
-    }
-    attempts++;
-  } while (attempts < maxAttempts);
-  
-  throw new Error('Unable to generate unique slug after maximum attempts');
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const slug = generateSlug()
+    const existing = await prisma.snippet.findUnique({ where: { slug } })
+    if (!existing) return slug
+  }
+  throw new Error('Unable to generate unique slug after 10 attempts')
 }
 
-/**
- * Validate slug format
- */
 export function isValidSlug(slug: string): boolean {
-  return /^[a-zA-Z0-9]{7}$/.test(slug);
+  return /^[a-zA-Z0-9]{7}$/.test(slug)
 }
