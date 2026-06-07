@@ -5,7 +5,7 @@ const Loading = () => {
     <div className="flex items-center justify-center min-h-screen">
       <div className="w-24 h-24 animate-pulse-fade">
         <img 
-          src="/svg/duckbin.svg" 
+          src="/svg/duck-dark.svg" 
           alt="Loading..." 
           className="w-full h-full"
         />
